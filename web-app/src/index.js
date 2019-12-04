@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import './index.css';
-import App from './App';
+import App from './app';
 import * as serviceWorker from './serviceWorker';
 
 const DATA_URL = 'https://raw.githubusercontent.com/uber-web/kepler.gl-data/master/earthquakes/data.csv'; // eslint-disable-line

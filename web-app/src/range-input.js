@@ -3,7 +3,7 @@ import React, { PureComponent } from 'react';
 import { styled } from 'baseui';
 import { Slider } from 'baseui/slider';
 import { Button, SHAPE, SIZE } from 'baseui/button';
-import Start from 'baseui/icon/chevron-right';
+import Start from 'baseui/icon/triangle-right';
 import Stop from 'baseui/icon/delete';
 
 const Container = styled('div', {

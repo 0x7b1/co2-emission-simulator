@@ -1,37 +1,25 @@
-import React, { Component, Fragment } from 'react';
+import React, { Component } from 'react';
 import { StaticMap } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { ScatterplotLayer } from '@deck.gl/layers';
 import { DataFilterExtension } from '@deck.gl/extensions';
+import { HexagonLayer, HeatmapLayer } from '@deck.gl/aggregation-layers';
+import { TripsLayer } from '@deck.gl/geo-layers';
+import sample from 'lodash/sample';
+import flatMap from 'lodash/flatMap';
 
 import { Client as Styletron } from 'styletron-engine-atomic';
 import { Provider as StyletronProvider } from 'styletron-react';
-import { LightTheme, BaseProvider, styled } from 'baseui';
-import { Display4, Paragraph3, Label3 } from 'baseui/typography';
-import { FormControl } from 'baseui/form-control';
-import { RadioGroup, Radio } from 'baseui/radio';
-import {
-  Card,
-  StyledBody,
-  StyledAction
-} from "baseui/card";
-import { Button } from "baseui/button";
-
+import { LightTheme, BaseProvider } from 'baseui';
 
 import RangeInput from './range-input';
+import CardInfo from './card-info';
+import CardLegend from './card-legend';
+
+import dataExample from './data.json';
+import trips from './trips.json';
 
 const engine = new Styletron();
-
-const Container2 = styled('div', {
-  position: 'absolute',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-  top: '20px',
-  right: '20px',
-  zIndex: 1,
-  width: '300px',
-});
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
 
@@ -43,6 +31,8 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
+const BASE = 1554772579000;
+
 const MS_PER_DAY = 8.64e7; // milliseconds in a day
 
 const dataFilter = new DataFilterExtension({ filterSize: 1 });
@@ -52,14 +42,23 @@ export default class App extends Component {
     super(props);
 
     const timeRange = this._getTimeRange(props.data);
+    const wholeData = this.convertData(trips);
 
     this.state = {
       timeRange,
+      hexData: dataExample,
+
+      wholeData,
+      filteredData: wholeData,
+
       filterValue: timeRange,
-      hoveredObject: null
+      hoveredObject: null,
+      pathFilterValue: [0, 100],
     };
-    this._onHover = this._onHover.bind(this);
-    this._renderTooltip = this._renderTooltip.bind(this);
+  }
+
+  convertData(data) {
+    return flatMap(data, e => e.waypoints);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -84,16 +83,63 @@ export default class App extends Component {
     );
   }
 
-  _onHover({ x, y, object }) {
+  _onHover = ({ x, y, object }) => {
     this.setState({ x, y, hoveredObject: object });
   }
 
-  _renderLayers() {
+  _renderLayers = () => {
     const { data } = this.props;
-    const { filterValue } = this.state;
+    const { filterValue, pathFilterValue, filteredData } = this.state;
+    const trail = pathFilterValue[1] - pathFilterValue[0];
+    // const temp = flatMap(trips, e => e.waypoints);
 
     return [
-      data &&
+      new TripsLayer({
+        id: 'trips-layer',
+        data: trips,
+        getPath: d => d.waypoints.map(p => p.coordinates),
+        getTimestamps: d => d.waypoints.map(p => p.timestamp - BASE),
+        getColor: [255, 0, 0],
+        opacity: 0.5,
+        widthMinPixels: 5,
+        rounded: true,
+        trailLength: trail,
+        currentTime: pathFilterValue[1],
+      }),
+
+      0 && new HexagonLayer({
+        id: 'hexagon-layer',
+        data: filteredData,
+        pickable: true,
+        extruded: true,
+        radius: 170, // 70
+        colorDomain: [1, 100],
+        elevationRange: [1, 500],
+        elevationScale: 10,
+        colorRange: [[1, 152, 189, 255], [73, 227, 206, 255], [216, 254, 181, 255], [254, 237, 177, 255], [254, 173, 84, 255], [209, 55, 78, 255]],
+        getColorWeight: d => d.co2,
+        getElevationWeight: d => d.co2,
+        colorAggregation: 'SUM',
+        elevationAggregation: 'SUM',
+        getPosition: d => d.coordinates,
+        transitions: {
+          elevationScale: 500,
+        },
+      }),
+
+      new HeatmapLayer({
+        id: 'heatmap-layer',
+        data: filteredData,
+        radiusPixels: 40, // 70
+        colorDomain: [10, 500],
+        colorRange: [[1, 152, 189, 255], [73, 227, 206, 255], [216, 254, 181, 255], [254, 237, 177, 255], [254, 173, 84, 255], [209, 55, 78, 255]],
+        getWeight: d => d.co2,
+        intensity: 1,
+        threshold: 0.1,
+        getPosition: d => d.coordinates,
+      }),
+
+      !data &&
       new ScatterplotLayer({
         id: 'earthquakes',
         data,
@@ -119,11 +165,11 @@ export default class App extends Component {
 
         pickable: true,
         onHover: this._onHover
-      })
+      }),
     ];
   }
 
-  _renderTooltip() {
+  _renderTooltip = () => {
     const { x, y, hoveredObject } = this.state;
     return (
       hoveredObject && (
@@ -150,9 +196,28 @@ export default class App extends Component {
     return `${date.getUTCFullYear()}/${date.getUTCMonth() + 1}`;
   }
 
+  addNewData = () => {
+    const newData = this.state.hexData;
+
+    this.setState({
+      hexData: newData.concat(sample(newData)),
+    });
+  }
+
+  filterPath = ({ value }) => {
+    const filteredData = this.state.wholeData.filter(d =>
+      d.timestamp > BASE + value[0] &&
+      d.timestamp < BASE + value[1]);
+
+    this.setState({
+      pathFilterValue: value,
+      filteredData,
+    });
+  }
+
   render() {
     const { mapStyle = 'mapbox://styles/mapbox/light-v9' } = this.props;
-    const { timeRange, filterValue } = this.state;
+    const { timeRange, filterValue, pathFilterValue } = this.state;
 
     return (
       <StyletronProvider value={engine}>
@@ -172,7 +237,7 @@ export default class App extends Component {
             {this._renderTooltip}
           </DeckGL>
 
-          {timeRange && (
+          {/* {timeRange && (
             <RangeInput
               min={timeRange[0]}
               max={timeRange[1]}
@@ -180,40 +245,13 @@ export default class App extends Component {
               formatLabel={this._formatLabel}
               onChange={({ value }) => this.setState({ filterValue: value })}
             />
-          )}
-          <Container2>
-            <Card>
-              <StyledBody>
-                <Display4>Emissions</Display4>
-                <Paragraph3>
-                  Proin ut dui sed metus pharetra hend rerit vel non
-                  mi. Nulla ornare faucibus ex, non facilisis nisl.
-                </Paragraph3>
-                <Label3>
-                  mi. Nulla ornare faucibus ex, non facilisis nisl.
-                </Label3>
-              </StyledBody>
-              <StyledAction>
-                <FormControl
-                  label="RadioGroup label"
-                  caption="RadioGroup caption"
-                >
-                  <RadioGroup>
-                    <Radio value="red">Red</Radio>
-                    <Radio value="green">Green</Radio>
-                    <Radio value="blue">Blue</Radio>
-                  </RadioGroup>
-                </FormControl>
-                <Button
-                  overrides={{
-                    BaseButton: { style: { width: '100%' } }
-                  }}
-                >
-                  Button Label
-                </Button>
-              </StyledAction>
-            </Card>
-          </Container2>
+          )} */}
+          <CardInfo
+            addNewData={this.addNewData}
+            filterPath={this.filterPath}
+            filterValue={pathFilterValue}
+          />
+          <CardLegend />
         </BaseProvider>
       </StyletronProvider>
     );
