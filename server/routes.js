@@ -1,11 +1,15 @@
+import chain from 'lodash/chain.js';
+
+import mockData from './mock-data.js';
+
 async function saveVehicleTimestamp(req, res) {
   const { db } = req;
-  const { id, lat, lng, speed } = req.body;
+  const { veh_id, lat, lng, speed } = req.body;
 
   const newVehiclePoint = [{
     measurement: 'vehicles',
+    tags: { veh_id },
     fields: {
-      id,
       lat,
       lng,
       speed,
@@ -14,7 +18,6 @@ async function saveVehicleTimestamp(req, res) {
 
   try {
     await db.writePoints(newVehiclePoint);
-
     res.status(200).end();
   } catch (error) {
     console.error(error);
@@ -26,8 +29,19 @@ async function getVehiclesData(req, res) {
   const { db } = req;
 
   try {
-    const data = await db.query('SELECT lat, lng, (speed / 10) as "speed" FROM vehicles');
-    res.json(data);
+    const result = await db.query(`
+      SELECT
+        time,
+        veh_id,
+        lat,
+        lng,
+        speed,
+        (speed * 3) AS co2
+      FROM vehicles
+      GROUP BY veh_id
+    `);
+
+    res.json(result.groups());
   } catch (error) {
     console.log(error);
     res.status(500).end();
@@ -44,8 +58,27 @@ async function cleanData(req, res) {
   }
 }
 
+function getMockData(req, res) {
+  res.json(mockData);
+}
+
+async function createTestData(req, res) {
+  const { db } = req;
+
+  try {
+    await db.writePoints(mockData);
+    res.status(200).end();
+  } catch (error) {
+    console.log(error);
+    res.status(500).end();
+  }
+}
+
 export default {
   saveVehicleTimestamp,
   getVehiclesData,
   cleanData,
+
+  getMockData,
+  createTestData,
 };

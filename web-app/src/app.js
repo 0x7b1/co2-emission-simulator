@@ -7,6 +7,8 @@ import { HexagonLayer, HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import sample from 'lodash/sample';
 import flatMap from 'lodash/flatMap';
+import groupBy from 'lodash/groupBy';
+import { json } from 'd3-fetch';
 
 import { Client as Styletron } from 'styletron-engine-atomic';
 import { Provider as StyletronProvider } from 'styletron-react';
@@ -21,8 +23,6 @@ import trips from './trips.json';
 
 const engine = new Styletron();
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
-
 const INITIAL_VIEW_STATE = {
   latitude: 36.5,
   longitude: -120,
@@ -31,10 +31,11 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
 const BASE = 1554772579000;
-
 const MS_PER_DAY = 8.64e7; // milliseconds in a day
-
+// const URL_DATA = 'http://localhost:8080/api/mock';
+const URL_DATA = 'http://localhost:8080/api/vehicles';
 const dataFilter = new DataFilterExtension({ filterSize: 1 });
 
 export default class App extends Component {
@@ -42,14 +43,14 @@ export default class App extends Component {
     super(props);
 
     const timeRange = this._getTimeRange(props.data);
-    const wholeData = this.convertData(trips);
 
     this.state = {
       timeRange,
       hexData: dataExample,
 
-      wholeData,
-      filteredData: wholeData,
+      wholeData: [],
+      filteredData: [],
+      orig: [],
 
       filterValue: timeRange,
       hoveredObject: null,
@@ -57,8 +58,56 @@ export default class App extends Component {
     };
   }
 
+  componentDidMount() {
+    this.fetchData();
+  }
+
+  fetchData = async () => {
+    const data = await json(URL_DATA);
+    const [vehiclesData, pathsData] = this.convertData(data);
+    console.log('vehiclesData', vehiclesData);
+    console.log('pathsData', pathsData);
+
+    this.setState({
+      wholeData: vehiclesData,
+      filteredData: vehiclesData,
+      // orig: data,
+      orig: pathsData,
+    }, () => {
+      // setTimeout(this.fetchData, 1000);
+    });
+  }
+
   convertData(data) {
-    return flatMap(data, e => e.waypoints);
+    const paths = [];
+    let vehInfo = [];
+
+    data.forEach((d) => {
+      // paths.push(d.rows.map(p => ({
+      //   path: [p.lng, p.lat],
+      //   timestamps: new Date(p.time) - BASE,
+      // })));
+      const path = [];
+      const timestamps = [];
+      d.rows.forEach(e => {
+        path.push([e.lng, e.lat]);
+        timestamps.push(new Date(e.time) - BASE);
+      });
+
+      paths.push({
+        path,
+        timestamps,
+      });
+      // paths.push({
+      //   path: d.rows.map(p => [p.lng, p.lat]),
+      //   timestamps: d.rows.map(p => new Date(p.time) - BASE),
+      // });
+
+      vehInfo = vehInfo.concat(d.rows);
+    });
+
+    // return flatMap(data, e => e.rows);
+    return [vehInfo, paths];
   }
 
   componentWillReceiveProps(nextProps) {
@@ -89,16 +138,35 @@ export default class App extends Component {
 
   _renderLayers = () => {
     const { data } = this.props;
-    const { filterValue, pathFilterValue, filteredData } = this.state;
+    const { filterValue, pathFilterValue, filteredData, wholeData, orig } = this.state;
     const trail = pathFilterValue[1] - pathFilterValue[0];
     // const temp = flatMap(trips, e => e.waypoints);
+    // const groupedData = groupBy(wholeData, 'veh_id');
+    console.log('orig', orig);
 
     return [
       new TripsLayer({
         id: 'trips-layer',
-        data: trips,
-        getPath: d => d.waypoints.map(p => p.coordinates),
-        getTimestamps: d => d.waypoints.map(p => p.timestamp - BASE),
+        data: orig,
+        getPath: d => d.path,
+        getTimestamps: d => d.timestamps,
+
+        // getPath: d => {
+        //   console.log('---', d);
+        //   const tmp = d.rows.map(r => [r.lng, r.lat]);
+        //   console.log('--->', tmp);
+        //   return tmp; // [[-122.41316, 7.77749], [-122.41316, 7.77749], ...]
+        // },
+        // getTimestamps: d => {
+        //   console.log('==', d)
+        //   const tmp = d.rows.map(r => new Date(r.time) - BASE);
+        //   console.log('==>', tmp)
+        //   return tmp; // [0, 10, 20, ...]
+        // },
+        // getPath: d => d.waypoints.map(p => p.coordinates),
+        // getTimestamps: d => new Date(d.time) - BASE,
+        // getTimestamps: d => d.waypoints.map(p => new Date(p.time) - BASE),
+        // getTimestamps: d => d.waypoints.map(p => p.timestamp - BASE),
         getColor: [255, 0, 0],
         opacity: 0.5,
         widthMinPixels: 5,
@@ -107,9 +175,10 @@ export default class App extends Component {
         currentTime: pathFilterValue[1],
       }),
 
-      0 && new HexagonLayer({
+      0 && wholeData && new HexagonLayer({
         id: 'hexagon-layer',
-        data: filteredData,
+        data: wholeData,
+        // data: filteredData,
         pickable: true,
         extruded: true,
         radius: 170, // 70
@@ -121,22 +190,22 @@ export default class App extends Component {
         getElevationWeight: d => d.co2,
         colorAggregation: 'SUM',
         elevationAggregation: 'SUM',
-        getPosition: d => d.coordinates,
+        getPosition: d => [d.lng, d.lat],
         transitions: {
           elevationScale: 500,
         },
       }),
 
-      new HeatmapLayer({
+      0 && wholeData && new HeatmapLayer({
         id: 'heatmap-layer',
-        data: filteredData,
+        data: wholeData,
         radiusPixels: 40, // 70
         colorDomain: [10, 500],
         colorRange: [[1, 152, 189, 255], [73, 227, 206, 255], [216, 254, 181, 255], [254, 237, 177, 255], [254, 173, 84, 255], [209, 55, 78, 255]],
         getWeight: d => d.co2,
         intensity: 1,
         threshold: 0.1,
-        getPosition: d => d.coordinates,
+        getPosition: d => [d.lng, d.lat],
       }),
 
       !data &&
@@ -205,9 +274,10 @@ export default class App extends Component {
   }
 
   filterPath = ({ value }) => {
-    const filteredData = this.state.wholeData.filter(d =>
-      d.timestamp > BASE + value[0] &&
-      d.timestamp < BASE + value[1]);
+    const { wholeData } = this.state;
+    const filteredData = wholeData.filter(d =>
+      Date(d.time) > BASE + value[0] &&
+      Date(d.time) < BASE + value[1]);
 
     this.setState({
       pathFilterValue: value,
@@ -247,7 +317,7 @@ export default class App extends Component {
             />
           )} */}
           <CardInfo
-            addNewData={this.addNewData}
+            // addNewData={this.addNewData}
             filterPath={this.filterPath}
             filterValue={pathFilterValue}
           />

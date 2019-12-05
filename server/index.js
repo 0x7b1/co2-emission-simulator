@@ -1,6 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import morgan from 'morgan';
+import cors from 'cors';
 
 import routes from './routes.js';
 import db from './db.js';
@@ -8,6 +9,7 @@ import db from './db.js';
 const app = express();
 
 // Setup
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -26,6 +28,12 @@ apiRouter.route('/vehicles')
 
 apiRouter.route('/clean')
   .get(routes.cleanData);
+
+apiRouter.route('/getmock')
+  .get(routes.getMockData);
+
+apiRouter.route('/addmock')
+  .post(routes.createTestData);
 
 app.use('/api', apiRouter);
 

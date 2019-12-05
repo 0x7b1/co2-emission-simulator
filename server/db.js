@@ -7,12 +7,12 @@ const db = new Influx.InfluxDB({
     {
       measurement: 'vehicles',
       fields: {
-        id: Influx.FieldType.STRING,
-        lat: Influx.FieldType.STRING,
-        lng: Influx.FieldType.STRING,
-        speed: Influx.FieldType.INTEGER,
+        veh_id: Influx.FieldType.STRING,
+        lat: Influx.FieldType.FLOAT,
+        lng: Influx.FieldType.FLOAT,
+        speed: Influx.FieldType.FLOAT,
       },
-      tags: [],
+      tags: ['veh_id'],
     },
   ],
 });
