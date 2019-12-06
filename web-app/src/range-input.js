@@ -1,5 +1,7 @@
 import React, { PureComponent } from 'react';
 
+import { Card, StyledBody, StyledAction } from "baseui/card";
+
 import { styled } from 'baseui';
 import { Slider } from 'baseui/slider';
 import { Button, SHAPE, SIZE } from 'baseui/button';
@@ -81,26 +83,28 @@ export default class RangeInput extends PureComponent {
 
     return (
       <Container>
-        <Button
-          shape={SHAPE.round}
-          size={SIZE.compact}
-          disabled={!isButtonEnabled}
-          onClick={this._toggle}
-        >
-          {
-            this.state.isPlaying
-              ? <Stop title="Stop" />
-              : <Start title="Animate" />
-          }
-        </Button>
-        <Slider
-          {...this.props}
-          overrides={{
-            ThumbValue: this._renderThumbValue,
-            TickBar: () => <TickBar />,
-            Root: { style: { width: 'initial' } }
-          }}
-        />
+        <Card>
+          <Button
+            shape={SHAPE.round}
+            size={SIZE.compact}
+            disabled={!isButtonEnabled}
+            onClick={this._toggle}
+          >
+            {
+              this.state.isPlaying
+                ? <Stop title="Stop" />
+                : <Start title="Animate" />
+            }
+          </Button>
+          <Slider
+            {...this.props}
+            overrides={{
+              ThumbValue: this._renderThumbValue,
+              TickBar: () => <TickBar />,
+              Root: { style: { width: 'initial' } }
+            }}
+          />
+        </Card>
       </Container >
     );
   }

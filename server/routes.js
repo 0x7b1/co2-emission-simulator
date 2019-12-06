@@ -2,22 +2,29 @@ import chain from 'lodash/chain.js';
 
 import mockData from './mock-data.js';
 
-async function saveVehicleTimestamp(req, res) {
-  const { db } = req;
+async function addVehicleStep(req, res) {
+  const { db, wsBroadcast } = req;
   const { veh_id, lat, lng, speed } = req.body;
+
+  const newVehicleStep = {
+    lat,
+    lng,
+    speed,
+  };
 
   const newVehiclePoint = [{
     measurement: 'vehicles',
     tags: { veh_id },
-    fields: {
-      lat,
-      lng,
-      speed,
-    },
+    fields: newVehicleStep,
   }];
 
   try {
-    await db.writePoints(newVehiclePoint);
+    wsBroadcast({
+      veh_id,
+      ...newVehicleStep,
+    });
+    // await db.writePoints(newVehiclePoint);
+
     res.status(200).end();
   } catch (error) {
     console.error(error);
@@ -75,7 +82,7 @@ async function createTestData(req, res) {
 }
 
 export default {
-  saveVehicleTimestamp,
+  addVehicleStep,
   getVehiclesData,
   cleanData,
 

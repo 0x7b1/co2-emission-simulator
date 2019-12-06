@@ -5,11 +5,12 @@ import requests
 tools = os.path.join(os.environ["SUMO_HOME"], "tools")
 sys.path.append(tools)
 
-API_ENDPOINT = "http://localhost:8080/api/vehicles/timestamp"
+API_ENDPOINT = "http://localhost:8080/api/vehicles/step"
 
 
-def sendVehicleData(lat, lng, speed):
+def sendVehicleData(veh_id, lat, lng, speed):
     data = {
+        "veh_id": veh_id,
         "lat": lat,
         "lng": lng,
         "speed": speed,
@@ -21,7 +22,7 @@ def sendVehicleData(lat, lng, speed):
 import traci
 
 sumoBinary = "/usr/bin/sumo-gui"
-sumoCmd = [sumoBinary, "-c", "hello.sumocfg"]
+sumoCmd = [sumoBinary, "-c", "hello.sumocfg", "--step-length=1.5"]
 
 traci.start(sumoCmd, label="sim1")
 
@@ -33,8 +34,8 @@ while traci.simulation.getMinExpectedNumber() > 0:
         x, y = traci.vehicle.getPosition(vehicleID)
         lng, lat = traci.simulation.convertGeo(x, y)
         speed = traci.vehicle.getSpeed(vehicleID)
-        sendVehicleData(lat, lng, speed)
-        print(speed)
+        sendVehicleData(vehicleID, lat, lng, speed)
+        print(vehicleID, "->", lat, ",", lng)
     step += 1
 
 traci.close()  # traci.close(False)
