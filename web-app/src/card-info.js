@@ -31,69 +31,19 @@ const ContainerInfo = styled('div', {
   // width: '300px',
 });
 
-const mToKm = (value) => `${(value / 3600000).toFixed(0)}h`;
-
-function CustomTicks() {
-  const [value, setValue] = React.useState([4500]);
-  const [css, theme] = useStyletron();
-  return (
-    <Slider
-      value={value}
-      min={0}
-      max={86400000}
-      step={3600000}
-      onChange={params => {
-        if (params.value) {
-          setValue(params.value);
-        } else {
-          setValue([]);
-        }
-      }}
-      overrides={{
-        ThumbValue: ({ $value }) => (
-          <div
-            className={css({
-              position: 'absolute',
-              top: `-${theme.sizing.scale800}`,
-              ...theme.typography.font200,
-              backgroundColor: 'transparent',
-            })}
-          >
-            {$value}m
-          </div>
-        ),
-        TickBar: ({ $min, $max }) => (
-          <div
-            className={css({
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingRight: theme.sizing.scale600,
-              paddingLeft: theme.sizing.scale600,
-              paddingBottom: theme.sizing.scale400,
-            })}
-          >
-            <div>{mToKm($min)}</div>
-            {/* <div>{mToKm(2400)}</div> */}
-            {/* <div>{mToKm(3800)}</div> */}
-            {/* <div>{mToKm(5200)}</div> */}
-            {/* <div>{mToKm(6600)}</div> */}
-            <div>{mToKm($max)}</div>
-          </div>
-        ),
-      }}
-    />
-  );
-}
+const HOUR_MS = 3600000;
+const formatTime = (value) => `${(value / HOUR_MS).toFixed(0)}h`;
 
 export default class CardInfo extends PureComponent {
   render() {
     const {
+      isLiveMode,
       showTrips,
+      showEmissions,
       toggleShowTrips,
+      toggleShowEmissions,
       dataRangeValue,
       filterDataRange,
-      isLiveMode,
       toggleLiveMode,
     } = this.props;
 
@@ -114,16 +64,6 @@ export default class CardInfo extends PureComponent {
                 <Radio value="red">Heatmap</Radio>
                 <Radio value="blue">3d Hexagons</Radio>
               </RadioGroup>
-            </FormControl> */}
-            {/* <FormControl>
-              <Checkbox
-                checkmarkType={STYLE_TYPE.toggle_round}
-                checked={showTrips}
-                onChange={toggleShowTrips}
-                labelPlacement={LABEL_PLACEMENT.right}
-              >
-                Show trips
-              </Checkbox>
             </FormControl> */}
             <FormControl>
               <Checkbox
@@ -146,7 +86,17 @@ export default class CardInfo extends PureComponent {
                       onChange={toggleShowTrips}
                       labelPlacement={LABEL_PLACEMENT.right}
                     >
-                      Show trips
+                      Show Trips
+                    </Checkbox>
+                  </FormControl>
+                  <FormControl>
+                    <Checkbox
+                      checkmarkType={STYLE_TYPE.toggle}
+                      checked={showEmissions}
+                      onChange={toggleShowEmissions}
+                      labelPlacement={LABEL_PLACEMENT.right}
+                    >
+                      Show Emissions
                     </Checkbox>
                   </FormControl>
                   <FormControl>
@@ -157,7 +107,7 @@ export default class CardInfo extends PureComponent {
                       onChange={filterDataRange}
                     />
                   </FormControl>
-                  <FormControl label='Set the time resolution'>
+                  {/* <FormControl label='Set the time resolution'>
                     <div>
                       <Tag
                         onClick={() => alert("asd")}
@@ -165,7 +115,7 @@ export default class CardInfo extends PureComponent {
                         variant={VARIANT.outlined}
                       >
                         30m
-                </Tag>
+                      </Tag>
                       <Tag
                         onClick={() => alert("asd")}
                         closeable={false}
@@ -188,16 +138,16 @@ export default class CardInfo extends PureComponent {
                         24h
                 </Tag>
                     </div>
-                  </FormControl>
+                  </FormControl> */}
                   {/* <FormControl>
                     <DateRange />
                   </FormControl> */}
                 </div>
               )
             }
-            {/* <FormControl>
+            <FormControl>
               <CustomTicks />
-            </FormControl> */}
+            </FormControl>
             {/* <Button
               size={SIZE.compact}
               onClick={this.props.addNewData}
