@@ -42,13 +42,11 @@ async function getVehiclesData(req, res) {
         veh_id,
         lat,
         lng,
-        speed,
         (speed * 3) AS co2
       FROM vehicles
-      GROUP BY veh_id
     `);
 
-    res.json(result.groups());
+    res.json(result);
   } catch (error) {
     console.log(error);
     res.status(500).end();
