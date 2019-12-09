@@ -1,0 +1,32 @@
+<configuration>
+
+	<input>
+		<gui-settings-file value="simulation.settings.xml" />
+		<route-files value="routes.xml"/>
+		<net-file value="map.net.xml"/>
+<!--
+		<additional-files value="additional.xml" />
+-->
+	</input>
+
+<!--
+	<output>
+		<emission-output value="out_emissions_vehicle.xml" />
+		<tripinfo-output value="out_tripinfo.xml" />
+		<summary-output value="out_summary.xml" />
+	</output>
+-->
+	<emissions>
+		<phemlight-path value="$SUMO_HOME/data/emissions/PHEMlight" />
+		<device.emissions.probability value="1.0" />
+		<device.emissions.deterministic value="true" />
+		<device.emissions.explicit value="PHEMlight/PC_G_EU4" />
+	</emissions>
+
+	<time>
+		<begin value="0"/>
+		<end value="10000"/>
+	</time>
+
+
+</configuration>

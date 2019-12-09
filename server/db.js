@@ -11,6 +11,7 @@ const db = new Influx.InfluxDB({
         lat: Influx.FieldType.FLOAT,
         lng: Influx.FieldType.FLOAT,
         speed: Influx.FieldType.FLOAT,
+        co2: Influx.FieldType.FLOAT,
       },
       tags: ['veh_id'],
     },

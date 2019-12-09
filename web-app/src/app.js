@@ -15,9 +15,10 @@ import { Map, fromJS, List } from 'immutable';
 import { Client as Styletron } from 'styletron-engine-atomic';
 import { Provider as StyletronProvider } from 'styletron-react';
 import { LightTheme, BaseProvider } from 'baseui';
-import { DataFilterExtension } from '@deck.gl/extensions';
 import moment from 'moment';
+import hsv2rgb from 'hsv-rgb';
 
+import DateRange from './date-range';
 import VehicleFilter from './vehicle-filter';
 import dataExample from './data.json';
 import trips from './trips.json';
@@ -34,9 +35,11 @@ const ContainerInfo = styled('div', {
 });
 
 const INITIAL_VIEW_STATE = {
-  latitude: 58.30079260885314,
-  longitude: 26.60045353923848,
-  zoom: 16.5,
+  // latitude: 58.30079260885314,
+  // longitude: 26.60045353923848,
+  latitude: 58.38121869628752,
+  longitude: 26.73278172091453,
+  zoom: 15,
   pitch: 0,
   bearing: 0
 };
@@ -48,7 +51,7 @@ const MS_PER_DAY = 604800000;
 const MS_PER_MINUTE = 1000;
 const URL_DATA = 'http://localhost:8080/api/vehicles';
 const URL_WS = 'ws://localhost:8081/ws';
-// const dataFilter = new DataFilterExtension({ filterSize: 1 });
+const mapRange = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;
 
 export default class App extends Component {
   constructor(props) {
@@ -60,25 +63,21 @@ export default class App extends Component {
     this.state = {
       ws: null,
 
+      histVehData: [],
+
       liveVehiclePaths: Map(),
 
       histVehiclePaths: Map(),
-      histVehiclePathsFilter: Map(),
-
       histVehicleData: List(),
-      histVehicleDataFilter: List(),
+      histVehicleDataFiltered: List(),
 
       lastTime: 0,
-      tripsPoints: [],
 
       timeRange,
-      hexData: dataExample,
-
-      vehiclesData: [],
-      filteredData: [],
-      orig: [],
-
       filterValue: timeRange,
+
+      // hexData: dataExample,
+
       hoveredObject: null,
 
       isLiveMode: true,
@@ -102,13 +101,14 @@ export default class App extends Component {
   }
 
   // This function groups and updates the path and timestamps of data
-  updateVehicleStep = (vehiclePaths, stepTime, lat, lng, veh_id) =>
+  updateVehicleStep = (vehiclePaths, stepTime, lat, lng, veh_id, co2) =>
     vehiclePaths.update(
       veh_id,
       fromJS({ path: [], timestamps: [] }),
       v => v
         .update('path', path => path.push(this.formatCoordinates(lat, lng)))
         .update('timestamps', timestamps => timestamps.push(stepTime))
+        .update('co2', () => co2)
     )
 
   connectWS = () => {
@@ -118,10 +118,10 @@ export default class App extends Component {
     ws.onmessage = ({ data }) => {
       const { liveVehiclePaths } = this.state;
       const stepTime = this.formatTimestamp();
-      const { lat, lng, veh_id } = JSON.parse(data);
+      const { lat, lng, veh_id, co2 } = JSON.parse(data);
 
       this.setState({
-        liveVehiclePaths: this.updateVehicleStep(liveVehiclePaths, stepTime, lat, lng, veh_id),
+        liveVehiclePaths: this.updateVehicleStep(liveVehiclePaths, stepTime, lat, lng, veh_id, co2),
         lastTime: stepTime,
       });
     };
@@ -139,7 +139,7 @@ export default class App extends Component {
       const inRange = stepTime > min && stepTime < max;
 
       if (inRange) {
-        histVehiclePaths = this.updateVehicleStep(histVehiclePaths, stepTime, lat, lng, veh_id);
+        histVehiclePaths = this.updateVehicleStep(histVehiclePaths, stepTime, lat, lng, veh_id, co2);
         histVehicleData = histVehicleData.push(Map({
           veh_id,
           time: stepTime,
@@ -154,6 +154,11 @@ export default class App extends Component {
 
   fetchData = async () => {
     const histVehData = await json(URL_DATA);
+
+    if (!histVehData.length) {
+      return;
+    }
+
     this.setState({
       histVehData,
     }, () => {
@@ -163,78 +168,36 @@ export default class App extends Component {
       this.setState({
         histVehiclePaths,
         histVehicleData,
-        histVehicleDataFilter: histVehicleData,
+        histVehicleDataFiltered: histVehicleData,
         filterValue: timeRange,
         timeRange,
-        // histVehiclePathsFilter: histVehiclePaths,
-        // lastTime for historical too??
       });
     });
-    // let { 
-    //   // histVehiclePaths, 
-    //   // histVehicleData,
-    //  } = this.state;
-
-    // timeRange[0] = Math.min(timeRange[0], t);
-    // timeRange[1] = Math.max(timeRange[1], t);
-
-    // histVehData.forEach(({ time, lat, lng, veh_id, co2 }) => {
-    //   const stepTime = this.formatTimestamp(new Date(time));
-
-    //   // const t = new Date(time) / MS_PER_MINUTE;
-    //   // const t = new Date(time) * 1;
-
-    //   histVehiclePaths = this.updateVehicleStep(histVehiclePaths, stepTime, lat, lng, veh_id);
-    //   histVehicleData = histVehicleData.push(Map({
-    //     veh_id,
-    //     time: stepTime,
-    //     coordinates: List(this.formatCoordinates(lat, lng)),
-    //     co2,
-    //   }));
-    // });
-
-    // const [histVehicleData, histVehiclePaths] = this.processHistoryData();
-    // const timeRange = [histVehData.first().get('time'), histVehicleData.last().get('time')];
-
-    // this.setState({
-    //   histVehData, // original
-    //   histVehiclePaths,
-    //   histVehicleData,
-    //   histVehicleDataFilter: histVehicleData,
-    //   timeRange,
-    //   filterValue: timeRange,
-    //   // histVehiclePathsFilter: histVehiclePaths,
-    //   // lastTime for historical too??
-    // });
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.data !== this.props.data) {
-      const timeRange = this._getTimeRange(nextProps.data);
-      this.setState({ timeRange, filterValue: timeRange });
-    }
-  }
+  // componentWillReceiveProps(nextProps) {
+  //   if (nextProps.data !== this.props.data) {
+  //     const timeRange = this._getTimeRange(nextProps.data);
+  //     this.setState({ timeRange, filterValue: timeRange });
+  //   }
+  // }
 
-  getTimeRange(data) {
+  // _getTimeRange(data) {
+  //   if (!data) {
+  //     return null;
+  //   }
 
-  }
+  //   return data.reduce(
+  //     (range, d) => {
+  //       const t = d.timestamp / MS_PER_DAY;
+  //       range[0] = Math.min(range[0], t);
+  //       range[1] = Math.max(range[1], t);
 
-  _getTimeRange(data) {
-    if (!data) {
-      return null;
-    }
-
-    return data.reduce(
-      (range, d) => {
-        const t = d.timestamp / MS_PER_DAY;
-        range[0] = Math.min(range[0], t);
-        range[1] = Math.max(range[1], t);
-
-        return range;
-      },
-      [Infinity, -Infinity]
-    );
-  }
+  //       return range;
+  //     },
+  //     [Infinity, -Infinity]
+  //   );
+  // }
 
   _onHover = ({ x, y, object }) => {
     this.setState({ x, y, hoveredObject: object });
@@ -247,13 +210,9 @@ export default class App extends Component {
       liveVehiclePaths,
       lastTime,
       isLiveMode,
-      // histVehicleData,
-      // histVehiclePathsFilter,
       histVehiclePaths,
-      histVehicleDataFilter,
+      histVehicleDataFiltered,
     } = this.state;
-
-    // console.log('->', histVehicleData.toJS());
 
     return [
       isLiveMode && new TripsLayer({
@@ -265,6 +224,7 @@ export default class App extends Component {
         opacity: 0.8,
         rounded: true,
         trailLength: 100,
+        widthMinPixels: 4,
         currentTime: lastTime,
         shadowEnabled: false,
       }),
@@ -274,13 +234,20 @@ export default class App extends Component {
         data: histVehiclePaths,
         pickable: true,
         getPath: ([, d]) => d.get('path').toJS(),
-        // getColor: d => colorToRGBArray(d.color),
-        // getWidth: d => 5,
+        // getColor: ([, d]) => hsv2rgb(
+        //   100 - mapRange(d.get('co2'), 0, 22427, 0, 100),
+        //   100,
+        //   100),
+        getWidth: ([, d]) => {
+          return d.get('path').size / 10;
+          // return Math.floor(Math.random() * 6);
+          // return mapRange(d.get('path'), 0, 100, 0, 10) * 10;
+        },
       }),
 
       !isLiveMode && showEmissions && new HexagonLayer({
         id: 'hexagon-layer',
-        data: histVehicleDataFilter,
+        data: histVehicleDataFiltered,
         getPosition: d => d.get('coordinates').toArray(),
         pickable: true,
         extruded: true,
@@ -305,9 +272,9 @@ export default class App extends Component {
         },
       }),
 
-      !isLiveMode && showEmissions && new HeatmapLayer({
+      0 && !isLiveMode && showEmissions && new HeatmapLayer({
         id: 'heatmap-layer',
-        data: histVehicleDataFilter,
+        data: histVehicleDataFiltered,
         radiusPixels: 40,
         colorDomain: [10, 500],
         colorRange: [
@@ -350,57 +317,41 @@ export default class App extends Component {
 
   formatTimeLabel(t, format) {
     // const date = new Date(t * MS_PER_MINUTE);
-    // const date = new Date(t);
     return moment(t).format(format);
   }
 
   filterDataRange = ({ value: [min, max] }) => {
-    const { histVehicleData } = this.state;
-
-    // const histVehiclePaths = Map();
-
-    // histVehicleData.filter()
-
-    // const filteredData = vehiclesData.filter((d) => {
-    //   const time_ms = new Date(d.time) / MS_PER_DAY;
-    //   const temp =
-    //     time_ms > min &&
-    //     time_ms < max;
-
-    //   return temp;
-    // });
-
-    // for (let d of histVehicleData) {
-    //   console.log('d', d);
-    // }
-
-    const [histVehicleDataFilter, histVehiclePaths] = this.processHistoryData(min, max);
-
-    // histVehicleData.ea(d => {
-    //   const time = new Date(d.get('time'));
-    //   return time >= min && time <= max;
-
-    //   histVehiclePaths = this.updateVehicleStep(histVehiclePaths, stepTime, lat, lng, veh_id);
-    // });
+    const [histVehicleDataFiltered, histVehiclePaths] = this.processHistoryData(min, max);
 
     this.setState({
-      // dataRangeValue: [min, max],
-      // filteredData,
-      // histVehiclePathsFilter,
       filterValue: [min, max],
-      histVehicleDataFilter,
+      histVehicleDataFiltered,
       histVehiclePaths,
     });
   }
 
-  renderResolutionFilter(timeMinutes) {
+  renderResolutionFilter(timeSeconds) {
     return (
       <Tag
-        onClick={() => alert("asd")}
+        onClick={() => {
+          const {
+            filterValue: [min,],
+            timeRange: [, rangeMax],
+          } = this.state;
+
+          let max = min + timeSeconds * 1000;
+          if (max > rangeMax) {
+            max = rangeMax;
+          }
+
+          this.filterDataRange({
+            value: [min, max],
+          });
+        }}
         closeable={false}
         variant={VARIANT.outlined}
       >
-        {timeMinutes}
+        {`${timeSeconds}s`}
       </Tag>
     );
   }
@@ -412,8 +363,10 @@ export default class App extends Component {
       showEmissions,
       timeRange,
       filterValue,
-      // dataRangeValue,
+      histVehData,
     } = this.state;
+
+    console.log('....filterValue', filterValue);
 
     return (
       <StyletronProvider value={engine}>
@@ -422,6 +375,7 @@ export default class App extends Component {
             layers={this._renderLayers()}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
+            pickingRadius={5}
           >
             <StaticMap
               reuseMaps
@@ -476,28 +430,36 @@ export default class App extends Component {
                     </Checkbox>
                       </FormControl>
                       {
-                        !isLiveMode && (
+                        !isLiveMode && histVehData.length && (
                           <div>
                             <FormControl label='Date filter'>
                               <VehicleFilter
                                 value={filterValue}
                                 min={timeRange[0]}
                                 max={timeRange[1]}
-                                // step={MS_PER_MINUTE}
                                 step={1}
-                                formatTimeLabelThumb={t => this.formatTimeLabel(t, 'LT')}
-                                formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
+                                formatTimeLabelThumb={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
+                                formatTimeLabelTick={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
+                                // step={MS_PER_MINUTE}
+                                // formatTimeLabelThumb={t => this.formatTimeLabel(t, 'LT')}
+                                // formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
                                 onChange={this.filterDataRange}
                               />
                             </FormControl>
                             <FormControl label='Time resolution'>
                               <div>
-                                {this.renderResolutionFilter(30)}
-                                {this.renderResolutionFilter(60)}
-                                {this.renderResolutionFilter(60 * 12)}
-                                {this.renderResolutionFilter(60 * 24)}
+                                {this.renderResolutionFilter(5)}
+                                {this.renderResolutionFilter(10)}
+                                {this.renderResolutionFilter(20)}
                               </div>
                             </FormControl>
+                            {/* <FormControl caption='Showing 5 hours and 30 minutes'>
+                              <DateRange
+                                startDate={filterValue[0]}
+                                endDate={filterValue[1]}
+                                filterDataRange={this.filterDataRange}
+                              />
+                            </FormControl> */}
                           </div>
                         )
                       }

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Slider } from 'baseui/slider';
 import { useStyletron } from 'baseui';
 
-const mToKm = (value) => `${(value / 1000).toFixed(1)}km`;
+// const mToKm = (value) => `${(value / 1000).toFixed(1)}km`;
 
 const MS_PER_SECOND = 1000;
 
@@ -30,8 +30,9 @@ function VehicleFilter(props) {
           <div
             className={css({
               position: 'absolute',
-              top: `-${theme.sizing.scale800}`,
+              top: `-${theme.sizing.scale1000}`, // 800
               backgroundColor: 'transparent',
+              // width: '100px',
               ...theme.typography.font100,
             })}
           >

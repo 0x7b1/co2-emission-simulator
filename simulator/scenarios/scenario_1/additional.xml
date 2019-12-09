@@ -1,0 +1,4 @@
+<additional>
+  <edgeData id="EDGE_1" file="output/edges_data.xml" />
+  <edgeData id="EMISSIONS_DETECTOR_ID_1" type="emissions" file="output/edges_emissions.xml" excludeEmpty="true" />
+</additional>

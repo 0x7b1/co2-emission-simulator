@@ -15,3 +15,9 @@
 
 - https://sumo.dlr.de/docs/Models/Emissions/HBEFA3-based.html
 - https://sumo.dlr.de/docs/Tools/Emissions.html
+- https://alloyui.com/examples/color-picker/hsv.html
+
+``` 
+const mapRange = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;
+``` 
+ 

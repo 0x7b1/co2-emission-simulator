@@ -2,14 +2,27 @@ import chain from 'lodash/chain.js';
 
 import mockData from './mock-data.js';
 
+function calculateCO2(speed) {
+  return speed * 10;
+}
+
 async function addVehicleStep(req, res) {
   const { db, wsBroadcast } = req;
-  const { veh_id, lat, lng, speed } = req.body;
+  const {
+    veh_id,
+    lat,
+    lng,
+    speed,
+    co2,
+  } = req.body;
+
+  // const co2 = calculateCO2(speed);
 
   const newVehicleStep = {
     lat,
     lng,
     speed,
+    co2,
   };
 
   const newVehiclePoint = [{
@@ -23,7 +36,7 @@ async function addVehicleStep(req, res) {
       veh_id,
       ...newVehicleStep,
     });
-    // await db.writePoints(newVehiclePoint);
+    await db.writePoints(newVehiclePoint);
 
     res.status(200).end();
   } catch (error) {
@@ -42,7 +55,7 @@ async function getVehiclesData(req, res) {
         veh_id,
         lat,
         lng,
-        (speed * 3) AS co2
+        co2
       FROM vehicles
     `);
 
