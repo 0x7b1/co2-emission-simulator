@@ -13,7 +13,10 @@ const db = new Influx.InfluxDB({
         speed: Influx.FieldType.FLOAT,
         co2: Influx.FieldType.FLOAT,
       },
-      tags: ['veh_id'],
+      tags: [
+        'veh_id',
+        'scenario',
+      ],
     },
   ],
 });

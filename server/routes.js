@@ -25,6 +25,7 @@ async function addVehicleStep(req, res) {
     speed,
     co2,
     time_offset_sec,
+    scenario,
   } = req.body;
 
   // const co2 = calculateCO2(speed);
@@ -39,7 +40,10 @@ async function addVehicleStep(req, res) {
   const newVehiclePoint = {
     measurement: 'vehicles',
     precision: Precision.Seconds,
-    tags: { veh_id },
+    tags: {
+      veh_id,
+      scenario,
+    },
     fields: newVehicleStep,
   };
 
@@ -55,7 +59,7 @@ async function addVehicleStep(req, res) {
       ...newVehicleStep,
     });
 
-    // await db.writePoints([newVehiclePoint]);
+    await db.writePoints([newVehiclePoint]);
 
     res.status(200).end();
   } catch (error) {
@@ -66,6 +70,7 @@ async function addVehicleStep(req, res) {
 
 async function getVehiclesData(req, res) {
   const { db } = req;
+  const { scenario = 'simple' } = req.query;
 
   try {
     const result = await db.query(`
@@ -76,6 +81,7 @@ async function getVehiclesData(req, res) {
         lng,
         co2
       FROM vehicles
+      WHERE scenario = '${scenario}'
     `);
 
     res.json(result);

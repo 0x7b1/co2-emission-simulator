@@ -8,15 +8,20 @@ sys.path.append(tools)
 
 API_ENDPOINT = "http://localhost:8080/api/vehicles/step"
 SCENARIO_FOLDER = "scenarios/"
+SCENARIO_SELECTED = os.getenv("SCENARIO")
+
+if SCENARIO_SELECTED is None:
+    print("First set a scenario!")
+    sys.exit()
 
 sumocfg_scenarios = dict(
-    scenario_0=SCENARIO_FOLDER + "scenario_0/testenv.sumocfg",
-    scenario_1=SCENARIO_FOLDER + "scenario_1/simulation.sumocfg",
-    scenario_2=SCENARIO_FOLDER + "scenario_2/scenario/most.traci.sumocfg",
+    simple=SCENARIO_FOLDER + "simple/testenv.sumocfg",
+    tartu=SCENARIO_FOLDER + "tartu/simulation.sumocfg",
+    monaco=SCENARIO_FOLDER + "monaco/scenario/most.sumocfg",
 )
 
 
-def sendVehicleData(veh_id, time_sec, lat, lng, speed, co2):
+def send_vehicle_data(veh_id, time_sec, lat, lng, speed, co2):
     data = {
         "veh_id": veh_id,
         "lat": lat,
@@ -24,15 +29,20 @@ def sendVehicleData(veh_id, time_sec, lat, lng, speed, co2):
         "speed": speed,
         "co2": co2,
         "time_offset_sec": time_sec,
+        "scenario": SCENARIO_SELECTED,
     }
 
     requests.post(url=API_ENDPOINT, data=data)
 
 
+def print_log(time_sec, vehicleID, lat, lng, co2):
+    print("{} => {}: ({},{}), {}".format(time_sec, vehicleID, lat, lng, co2))
+
+
 import traci
 import traci.constants as tc
 
-SUMOCFG_FILE = sumocfg_scenarios["scenario_2"]
+SUMOCFG_FILE = sumocfg_scenarios[SCENARIO_SELECTED]
 
 sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", SUMOCFG_FILE, "--step-length=1.0", "-S", "-Q"]
@@ -46,15 +56,18 @@ SEC_TO_HOUR = SEC_TO_MIN * 60
 
 begin_sec = 0
 end_sec = SEC_TO_HOUR * 5
-
-# traci.vehicle.subscribe(vehID, (tc.VAR_ROAD_ID, tc.VAR_LANEPOSITION))
+# end_sec = SEC_TO_MIN * 2
 
 
 def main():
     try:
-        # while traci.simulation.getMinExpectedNumber() > 0:
         for step in range(begin_sec, end_sec):
             traci.simulationStep()
+
+            # Finish if there is no vehicle running
+            if traci.simulation.getMinExpectedNumber() <= 0:
+                break
+
             for vehicleID in traci.vehicle.getIDList():
                 time_sec = traci.simulation.getTime()
 
@@ -63,10 +76,9 @@ def main():
                 speed = traci.vehicle.getSpeed(vehicleID)
                 co2 = traci.vehicle.getCO2Emission(vehicleID)
 
-                sendVehicleData(vehicleID, time_sec, lat, lng, speed, co2)
-                print(
-                    "{} => {}: ({},{}), {}".format(time_sec, vehicleID, lat, lng, co2)
-                )
+                send_vehicle_data(vehicleID, time_sec, lat, lng, speed, co2)
+                print_log(time_sec, vehicleID, lat, lng, co2)
+
     except traci.exceptions.TraCIException:
         logging.fatal("Fatal error at timestamp %.2f", _time)
 

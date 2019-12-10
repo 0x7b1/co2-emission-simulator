@@ -27,9 +27,18 @@ import { Spinner } from 'baseui/spinner';
 
 import VehicleFilter from './vehicle-filter';
 import CardLegend from './card-legend';
+import config from './config';
+
+const {
+  initialPosition,
+  co2ColorRange,
+  urlData,
+  urlWs,
+  mapboxToken,
+  mapStyle,
+} = config;
 
 const engine = new Styletron();
-
 const ContainerInfo = styled('div', {
   position: 'absolute',
   display: 'flex',
@@ -38,45 +47,18 @@ const ContainerInfo = styled('div', {
   left: '20px',
   bottom: '20px',
 });
-
 const INITIAL_VIEW_STATE = {
-  // latitude: 58.30079260885314,
-  // longitude: 26.60045353923848,
-
-  // latitude: 58.38121869628752,
-  // longitude: 26.73278172091453,
-
-  latitude: 43.72876951717807,
-  longitude: 7.381480783579958,
-
   zoom: 15,
   pitch: 0,
   bearing: 0,
-
   maxZoom: 17,
+  ...initialPosition,
 };
 
-const MAP_STYLE = 'mapbox://styles/mapbox/dark-v9';
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
 const BASE_DATE = new Date().getTime();
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = MS_PER_SECOND * 60;
-const URL_DATA = 'http://localhost:8080/api/vehicles';
-const URL_WS = 'ws://localhost:8081/ws';
-
 const mapRange = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;
-const co2ColorRange = [
-  [42, 163, 100],
-  [162, 206, 86],
-  [240, 225, 75],
-  [222, 191, 68],
-  [205, 158, 61],
-  [188, 124, 53],
-  [171, 91, 46],
-  [143, 61, 35],
-  [82, 39, 12],
-  [56, 29, 2],
-];
 
 export default class App extends Component {
   constructor(props) {
@@ -94,7 +76,6 @@ export default class App extends Component {
       lastTime: 0,
       timeRange,
       filterValue: timeRange,
-      hoveredObject: null,
       isLiveMode: true,
       showTrips: true,
       showTrails: false,
@@ -120,7 +101,7 @@ export default class App extends Component {
     )
 
   connectWS = () => {
-    const ws = new WebSocket(URL_WS);
+    const ws = new WebSocket(urlWs);
 
     ws.onopen = () => this.setState({ ws });
     ws.onmessage = ({ data }) => {
@@ -160,7 +141,12 @@ export default class App extends Component {
 
   fetchData = async () => {
     try {
-      const histVehicleData = fromJS(await json(URL_DATA));
+      const histVehicleData = fromJS(await json(urlData));
+
+      if (histVehicleData.isEmpty()) {
+        throw new Error('There is no data yet!');
+      }
+
       const timeRange = [
         new Date(histVehicleData.first().get('time')).getTime(),
         new Date(histVehicleData.last().get('time')).getTime(),
@@ -174,10 +160,6 @@ export default class App extends Component {
     } catch (error) {
       console.error(error);
     }
-  }
-
-  _onHover = ({ x, y, object }) => {
-    this.setState({ x, y, hoveredObject: object });
   }
 
   getLiveLayers() {
@@ -254,28 +236,6 @@ export default class App extends Component {
         colorRange: co2ColorRange,
       }),
     ];
-  }
-
-  _renderTooltip = () => {
-    const { x, y, hoveredObject } = this.state;
-    return (
-      hoveredObject && (
-        <div className="tooltip" style={{ top: y, left: x }}>
-          <div>
-            <b>Time: </b>
-            <span>{new Date(hoveredObject.timestamp).toUTCString()}</span>
-          </div>
-          <div>
-            <b>Magnitude: </b>
-            <span>{hoveredObject.magnitude}</span>
-          </div>
-          <div>
-            <b>Depth: </b>
-            <span>{hoveredObject.depth} km</span>
-          </div>
-        </div>
-      )
-    );
   }
 
   formatTimeLabel(t, format) {
@@ -501,9 +461,9 @@ export default class App extends Component {
           >
             <StaticMap
               reuseMaps
-              mapStyle={MAP_STYLE}
+              mapStyle={mapStyle}
               preventStyleDiffing={true}
-              mapboxApiAccessToken={MAPBOX_TOKEN}
+              mapboxApiAccessToken={mapboxToken}
             />
 
             {this._renderTooltip}
