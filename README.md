@@ -1,6 +1,8 @@
 
 # CO2 Emission Simulator
 
+![Screenshot](screenshot_1.png)
+
 This is the repository for the project titled "A distributed real-time simulation based approach for quantifying CO2 emissions of urban car traffic".
 It contains the report and two programs that are part of it.
 
