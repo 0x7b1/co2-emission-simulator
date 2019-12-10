@@ -55,7 +55,7 @@ export default class CardLegend extends PureComponent {
         <Card>
           <StyledBody>
             <Paragraph3 style={{ textAlign: 'center' }}>
-              CO2 intensity (mg/s)
+              CO2 intensity (mg)
             </Paragraph3>
             {this.renderCO2LinearGauge()}
           </StyledBody>

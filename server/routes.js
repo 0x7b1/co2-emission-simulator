@@ -1,15 +1,48 @@
 import influx from 'influx';
 const { Precision } = influx;
-// import chain from 'lodash/chain.js';
+import fs from 'fs';
 
 import mockData from './mock-data.js';
 
-function calculateCO2(speed) {
+// Meters per second to Miles per hour
+function msTomh(ms) {
+  return 2.23693629 * ms;
+}
+
+function calculateCO(speed) {
+  if (speed < 0) return 0;
   // return speed * 10;
-  return Number(speed);
+  // return Number(speed);
+  const vm = msTomh(speed);
+  const p = -0.064 + 0.0056 * vm + 0.00026 * Math.pow(vm - 50, 2); // g/s
+
+  return p * 1000; // mg/s
+}
+
+const emissionClass = {
+  PC_G_EU4: [9449, 938.4, 0.0, -467.1, 28.26, 0.0], // gasoline driven passenger car Euro norm 4
+  HDV_D_EU0: [3.251e+04, 7256, 0.0, 1631, 0.0, 0.0], // diesel driven heavy duty vehicle Euro norm 0
+};
+
+function calculateCO2(s, a, c = 'PC_G_EU4') {
+  if (a < 0) return 0;
+
+  let scale = 3.6;
+  // if (c.includes('HDV')) {
+  //   scale *= 836.;
+  // }
+
+  const f = emissionClass[c];
+  const co2 = f[0] + f[1] * a * s + f[2] * a * a * s + f[3] * s + f[4] * s * s + f[5] * s * s * s;
+
+  return Math.max(co2 / scale, 0.0);
 }
 
 const BASE_DATE = new Date(2019, 11, 9, 6).getTime();
+
+const logger = fs.createWriteStream('emissions.csv');
+logger.write('sumo,form\n');
+// logger.close()
 
 function getTimeWithOffset(time_offset_sec) {
   const time = new Date(BASE_DATE + time_offset_sec * 1000);
@@ -23,19 +56,22 @@ async function addVehicleStep(req, res) {
     lat,
     lng,
     speed,
-    co2,
+    acc,
+    // co2,
     time_offset_sec,
     scenario,
   } = req.body;
 
-  // const co2 = calculateCO2(speed);
-
   const newVehicleStep = {
+    // co2: calculateCO2(co2),
+    co2: calculateCO2(speed, acc),
     lat: Number(lat),
     lng: Number(lng),
-    speed,
-    co2: calculateCO2(co2),
+    // speed,
   };
+
+  // console.log('%s,%s', co2, newVehicleStep.co2);
+  // logger.write(co2 + ',' + newVehicleStep.co2 + '\n');
 
   const newVehiclePoint = {
     measurement: 'vehicles',
@@ -54,10 +90,10 @@ async function addVehicleStep(req, res) {
   }
 
   try {
-    wsBroadcast({
-      veh_id,
-      ...newVehicleStep,
-    });
+    // wsBroadcast({
+    //   veh_id,
+    //   ...newVehicleStep,
+    // });
 
     await db.writePoints([newVehiclePoint]);
 

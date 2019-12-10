@@ -21,13 +21,14 @@ sumocfg_scenarios = dict(
 )
 
 
-def send_vehicle_data(veh_id, time_sec, lat, lng, speed, co2):
+def send_vehicle_data(veh_id, time_sec, lat, lng, speed, acc, co2):
     data = {
         "veh_id": veh_id,
         "lat": lat,
         "lng": lng,
         "speed": speed,
         "co2": co2,
+        "acc": acc,
         "time_offset_sec": time_sec,
         "scenario": SCENARIO_SELECTED,
     }
@@ -44,12 +45,15 @@ import traci.constants as tc
 
 SUMOCFG_FILE = sumocfg_scenarios[SCENARIO_SELECTED]
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
 sumoCmd = [sumoBinary, "-c", SUMOCFG_FILE, "--step-length=1.0", "-S", "-Q"]
 
 traci.start(sumoCmd, label="sim1")
 
 # CO2 emissionclass = HBEFA3/PC_G_EU4
+
+# veh_class HBEFA3/Bus
+# veh_class HBEFA3/HDV_D_EU0
 
 SEC_TO_MIN = 60
 SEC_TO_HOUR = SEC_TO_MIN * 60
@@ -74,9 +78,14 @@ def main():
                 x, y = traci.vehicle.getPosition(vehicleID)
                 lng, lat = traci.simulation.convertGeo(x, y)
                 speed = traci.vehicle.getSpeed(vehicleID)
+                acc = traci.vehicle.getAcceleration(vehicleID)  # m/s^2
                 co2 = traci.vehicle.getCO2Emission(vehicleID)
+                # co = traci.vehicle.getCOEmission(vehicleID)
 
-                send_vehicle_data(vehicleID, time_sec, lat, lng, speed, co2)
+                # veh_class = traci.vehicle.getEmissionClass(vehicleID)
+                # print("veh_class", veh_class)
+
+                send_vehicle_data(vehicleID, time_sec, lat, lng, speed, acc, co2)
                 print_log(time_sec, vehicleID, lat, lng, co2)
 
     except traci.exceptions.TraCIException:

@@ -86,6 +86,7 @@ export default class App extends Component {
   }
 
   componentDidMount() {
+    document.title = 'CO2 Emission Visualizer';
     this.fetchData();
     this.connectWS();
   }
@@ -410,6 +411,10 @@ export default class App extends Component {
     ).format('HH:mm:ss');
   }
 
+  getCO2Level(intervalTime, co2Values) {
+    return 0;
+  }
+
   renderStatsHist() {
     const {
       timeRange,
@@ -423,8 +428,8 @@ export default class App extends Component {
 
     return this.renderStats([
       { description: 'Vehicles', value: histVehiclePaths.size },
-      { description: 'CO2 Level', value: '10ppm' },
-      { description: 'Recorded ime', value: this.getRecorderTime(...timeRange) },
+      // { description: 'CO2 Level', value: '10ppm' },
+      { description: 'Recorded Time', value: this.getRecorderTime(...timeRange) },
     ]);
   }
 
@@ -436,8 +441,8 @@ export default class App extends Component {
 
     return this.renderStats([
       { description: 'Vehicles', value: liveVehiclePaths.size },
-      { description: 'CO2 Level', value: '0ppm' },
-      { description: 'Recorded time', value: this.getRecorderTime(BASE_DATE, lastTime + BASE_DATE) },
+      // { description: 'CO2 Level', value: '0ppm' },
+      { description: 'Recorded Time', value: this.getRecorderTime(BASE_DATE, lastTime + BASE_DATE) },
     ]);
   }
 
