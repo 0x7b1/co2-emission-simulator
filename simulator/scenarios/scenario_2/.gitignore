@@ -1,0 +1,21 @@
+# Scripts:
+*.log
+*.py
+*.sh
+*.sumocfg
+
+# Data:
+*.csv
+*.json
+*.osm
+*.pkl
+
+# Misc:
+tools/misc
+out/*
+*.errorlog
+*.html
+*.png
+*.svg
+*.txt
+*.xml

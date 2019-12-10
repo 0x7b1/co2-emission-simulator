@@ -1,9 +1,18 @@
-import chain from 'lodash/chain.js';
+import influx from 'influx';
+const { Precision } = influx;
+// import chain from 'lodash/chain.js';
 
 import mockData from './mock-data.js';
 
 function calculateCO2(speed) {
   return speed * 10;
+}
+
+const BASE_DATE = new Date(2019, 11, 9, 6).getTime();
+
+function getTimeWithOffset(time_offset_sec) {
+  const time = new Date(BASE_DATE + time_offset_sec * 1000);
+  return time;
 }
 
 async function addVehicleStep(req, res) {
@@ -14,6 +23,7 @@ async function addVehicleStep(req, res) {
     lng,
     speed,
     co2,
+    time_offset_sec,
   } = req.body;
 
   // const co2 = calculateCO2(speed);
@@ -25,18 +35,25 @@ async function addVehicleStep(req, res) {
     co2,
   };
 
-  const newVehiclePoint = [{
+  const newVehiclePoint = {
     measurement: 'vehicles',
+    precision: Precision.Seconds,
     tags: { veh_id },
     fields: newVehicleStep,
-  }];
+  };
+
+  if (time_offset_sec) {
+    Object.assign(newVehiclePoint, {
+      timestamp: getTimeWithOffset(time_offset_sec),
+    });
+  }
 
   try {
     wsBroadcast({
       veh_id,
       ...newVehicleStep,
     });
-    await db.writePoints(newVehiclePoint);
+    // await db.writePoints([newVehiclePoint]);
 
     res.status(200).end();
   } catch (error) {

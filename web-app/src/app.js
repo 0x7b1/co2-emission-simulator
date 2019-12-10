@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { StaticMap } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
-import { PathLayer } from '@deck.gl/layers';
+import { PathLayer, IconLayer } from '@deck.gl/layers';
 import { HexagonLayer, HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { FormControl } from 'baseui/form-control';
@@ -18,8 +18,9 @@ import { LightTheme, BaseProvider } from 'baseui';
 import moment from 'moment';
 import hsv2rgb from 'hsv-rgb';
 
-import DateRange from './date-range';
 import VehicleFilter from './vehicle-filter';
+import CardLegend from './card-legend';
+import DateRange from './date-range';
 import dataExample from './data.json';
 import trips from './trips.json';
 
@@ -37,8 +38,13 @@ const ContainerInfo = styled('div', {
 const INITIAL_VIEW_STATE = {
   // latitude: 58.30079260885314,
   // longitude: 26.60045353923848,
-  latitude: 58.38121869628752,
-  longitude: 26.73278172091453,
+
+  // latitude: 58.38121869628752,
+  // longitude: 26.73278172091453,
+
+  latitude: 43.72876951717807,
+  longitude: 7.381480783579958,
+
   zoom: 15,
   pitch: 0,
   bearing: 0
@@ -46,7 +52,7 @@ const INITIAL_VIEW_STATE = {
 
 const MAP_STYLE = 'mapbox://styles/mapbox/light-v9';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
-const BASE = new Date() * 1;
+const BASE = new Date().getTime();
 const MS_PER_DAY = 604800000;
 const MS_PER_MINUTE = 1000;
 const URL_DATA = 'http://localhost:8080/api/vehicles';
@@ -96,8 +102,9 @@ export default class App extends Component {
   }
 
   formatTimestamp(time = new Date()) {
+    return (time.getTime() - BASE);
     // return (time.getTime() - BASE) / 1000;
-    return time.getTime();
+    // return time.getTime();
   }
 
   // This function groups and updates the path and timestamps of data
@@ -214,19 +221,29 @@ export default class App extends Component {
       histVehicleDataFiltered,
     } = this.state;
 
+    console.log('liveVehiclePaths', liveVehiclePaths.toJS());
+
     return [
+      // isLiveMode && new IconLayer({
+      //   id: 'vehicles-layer',
+      //   data: {},
+      //   pickable: false,
+      //   iconAtlas: '',
+      //   iconMapping: {},
+      // }),
       isLiveMode && new TripsLayer({
         id: 'trips-layer',
         data: liveVehiclePaths,
         getPath: ([, d]) => d.get('path').toJS(),
         getTimestamps: ([, d]) => d.get('timestamps').toJS(),
-        getColor: [253, 128, 93],
-        opacity: 0.8,
+        getColor: [0, 0, 0],
+        // getColor: [253, 128, 93],
+        opacity: 0.9,
         rounded: true,
-        trailLength: 100,
-        widthMinPixels: 4,
+        trailLength: 10000, // 10 seconds 
+        widthMinPixels: 5,
         currentTime: lastTime,
-        shadowEnabled: false,
+        // shadowEnabled: false,
       }),
 
       !isLiveMode && showTrips && new PathLayer({
@@ -238,10 +255,11 @@ export default class App extends Component {
         //   100 - mapRange(d.get('co2'), 0, 22427, 0, 100),
         //   100,
         //   100),
+        // widthMaxPixels: 10,
         getWidth: ([, d]) => {
-          return d.get('path').size / 10;
+          // return d.get('path').size / 15;
           // return Math.floor(Math.random() * 6);
-          // return mapRange(d.get('path'), 0, 100, 0, 10) * 10;
+          return mapRange(d.get('path').size, 0, 500, 0, 10);
         },
       }),
 
@@ -330,28 +348,35 @@ export default class App extends Component {
     });
   }
 
-  renderResolutionFilter(timeSeconds) {
+  renderResolutionFilter(label, timeSeconds = 0) {
     return (
       <Tag
+        closeable={false}
+        variant={VARIANT.outlined}
         onClick={() => {
           const {
             filterValue: [min,],
-            timeRange: [, rangeMax],
+            timeRange: [rangeMin, rangeMax],
           } = this.state;
+          let newRange;
 
-          let max = min + timeSeconds * 1000;
-          if (max > rangeMax) {
-            max = rangeMax;
+          if (!timeSeconds) {
+            newRange = [rangeMin, rangeMax];
+          } else {
+            let max = min + timeSeconds * 1000;
+            if (max > rangeMax) {
+              max = rangeMax;
+            }
+
+            newRange = [min, max];
           }
 
           this.filterDataRange({
-            value: [min, max],
+            value: newRange,
           });
         }}
-        closeable={false}
-        variant={VARIANT.outlined}
       >
-        {`${timeSeconds}s`}
+        {label}
       </Tag>
     );
   }
@@ -365,8 +390,6 @@ export default class App extends Component {
       filterValue,
       histVehData,
     } = this.state;
-
-    console.log('....filterValue', filterValue);
 
     return (
       <StyletronProvider value={engine}>
@@ -389,10 +412,11 @@ export default class App extends Component {
           <ContainerInfo>
             <Card>
               <StyledBody>
-                <Display4>Emissions</Display4>
+                <Display4>CO2 Emissions</Display4>
                 <Paragraph3>
-                  This app lets you visualize the emissions of vehicle traffic in two modes: real and past time
-            </Paragraph3>
+                  This app shows the CO2 emissions of urban traffic.
+                  Two modes available: real-time and historical
+                </Paragraph3>
               </StyledBody>
               <StyledAction>
                 <FormControl>
@@ -448,9 +472,13 @@ export default class App extends Component {
                             </FormControl>
                             <FormControl label='Time resolution'>
                               <div>
-                                {this.renderResolutionFilter(5)}
-                                {this.renderResolutionFilter(10)}
-                                {this.renderResolutionFilter(20)}
+                                {this.renderResolutionFilter('5s', 5)}
+                                {this.renderResolutionFilter('30s', 30)}
+                                {this.renderResolutionFilter('1m', 60)}
+                                {this.renderResolutionFilter('10m', 60 * 10)}
+                                {this.renderResolutionFilter('30m', 60 * 30)}
+                                {this.renderResolutionFilter('1h', 60 * 60)}
+                                {this.renderResolutionFilter('All')}
                               </div>
                             </FormControl>
                             {/* <FormControl caption='Showing 5 hours and 30 minutes'>
@@ -469,6 +497,7 @@ export default class App extends Component {
               </StyledAction>
             </Card>
           </ContainerInfo>
+          <CardLegend />
         </BaseProvider>
       </StyletronProvider>
     );
