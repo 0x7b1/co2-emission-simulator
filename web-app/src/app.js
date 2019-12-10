@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import { StaticMap } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { PathLayer, IconLayer } from '@deck.gl/layers';
@@ -7,7 +7,17 @@ import { TripsLayer } from '@deck.gl/geo-layers';
 import { FormControl } from 'baseui/form-control';
 import { Card, StyledBody, StyledAction } from "baseui/card";
 import { styled, useStyletron } from 'baseui';
-import { Display4, Paragraph3, Label3 } from 'baseui/typography';
+import {
+  Display4,
+  Label1,
+  Label2,
+  Label3,
+  Label4,
+  Paragraph1,
+  Paragraph2,
+  Paragraph3,
+  Paragraph4,
+} from 'baseui/typography';
 import { Checkbox, LABEL_PLACEMENT, STYLE_TYPE } from "baseui/checkbox";
 import { Tag, VARIANT } from "baseui/tag";
 import { json } from 'd3-fetch';
@@ -17,6 +27,16 @@ import { Provider as StyletronProvider } from 'styletron-react';
 import { LightTheme, BaseProvider } from 'baseui';
 import moment from 'moment';
 import hsv2rgb from 'hsv-rgb';
+import { StyledLink as Link } from 'baseui/link';
+import { Button } from 'baseui/button';
+import {
+  HeaderNavigation,
+  ALIGN,
+  StyledNavigationItem as NavigationItem,
+  StyledNavigationList as NavigationList,
+} from 'baseui/header-navigation';
+import { ListItem, ARTWORK_SIZES, ListItemLabel } from "baseui/list";
+import { Check } from "baseui/icon";
 
 import VehicleFilter from './vehicle-filter';
 import CardLegend from './card-legend';
@@ -88,7 +108,11 @@ export default class App extends Component {
 
       isLiveMode: true,
       showTrips: true,
-      showEmissions: false,
+      showTrails: true,
+      showEmissionsHist: false,
+      showEmissionsLive: false,
+
+      vehicleCount: 0,
     };
   }
 
@@ -130,6 +154,7 @@ export default class App extends Component {
       this.setState({
         liveVehiclePaths: this.updateVehicleStep(liveVehiclePaths, stepTime, lat, lng, veh_id, co2),
         lastTime: stepTime,
+        vehicleCount: liveVehiclePaths.size,
       });
     };
     ws.onerror = err => ws.close();
@@ -210,28 +235,18 @@ export default class App extends Component {
     this.setState({ x, y, hoveredObject: object });
   }
 
-  _renderLayers = () => {
+  getLiveLayers() {
     const {
-      showTrips,
-      showEmissions,
       liveVehiclePaths,
       lastTime,
-      isLiveMode,
-      histVehiclePaths,
-      histVehicleDataFiltered,
+      showTrails,
+      showEmissionsLive,
     } = this.state;
 
     console.log('liveVehiclePaths', liveVehiclePaths.toJS());
 
     return [
-      // isLiveMode && new IconLayer({
-      //   id: 'vehicles-layer',
-      //   data: {},
-      //   pickable: false,
-      //   iconAtlas: '',
-      //   iconMapping: {},
-      // }),
-      isLiveMode && new TripsLayer({
+      showTrails && new TripsLayer({
         id: 'trips-layer',
         data: liveVehiclePaths,
         getPath: ([, d]) => d.get('path').toJS(),
@@ -240,13 +255,43 @@ export default class App extends Component {
         // getColor: [253, 128, 93],
         opacity: 0.9,
         rounded: true,
-        trailLength: 10000, // 10 seconds 
+        trailLength: 60000, // 60 seconds 
         widthMinPixels: 5,
         currentTime: lastTime,
         // shadowEnabled: false,
       }),
 
-      !isLiveMode && showTrips && new PathLayer({
+      0 && showEmissionsLive && new HeatmapLayer({
+        id: 'heatmap-layer',
+        data: liveVehiclePaths, // FIX THIS
+        radiusPixels: 40,
+        colorDomain: [10, 500],
+        colorRange: [
+          [1, 152, 189, 255],
+          [73, 227, 206, 255],
+          [216, 254, 181, 255],
+          [254, 237, 177, 255],
+          [254, 173, 84, 255],
+          [209, 55, 78, 255],
+        ],
+        getPosition: d => d.get('coordinates').toArray(),
+        getWeight: d => d.get('co2'),
+        intensity: 1,
+        threshold: 0.1,
+      }),
+    ];
+  }
+
+  getHistLayers() {
+    const {
+      showTrips,
+      showEmissionsHist,
+      histVehiclePaths,
+      histVehicleDataFiltered,
+    } = this.state;
+
+    return [
+      showTrips && new PathLayer({
         id: 'path-layer',
         data: histVehiclePaths,
         pickable: true,
@@ -263,7 +308,7 @@ export default class App extends Component {
         },
       }),
 
-      !isLiveMode && showEmissions && new HexagonLayer({
+      showEmissionsHist && new HexagonLayer({
         id: 'hexagon-layer',
         data: histVehicleDataFiltered,
         getPosition: d => d.get('coordinates').toArray(),
@@ -290,7 +335,7 @@ export default class App extends Component {
         },
       }),
 
-      0 && !isLiveMode && showEmissions && new HeatmapLayer({
+      0 && showEmissionsHist && new HeatmapLayer({
         id: 'heatmap-layer',
         data: histVehicleDataFiltered,
         radiusPixels: 40,
@@ -381,21 +426,166 @@ export default class App extends Component {
     );
   }
 
-  render() {
+  renderHistoryOptions() {
     const {
-      isLiveMode,
       showTrips,
-      showEmissions,
+      showEmissionsHist,
       timeRange,
       filterValue,
       histVehData,
     } = this.state;
 
     return (
+      <Fragment>
+        <FormControl>
+          <Checkbox
+            checkmarkType={STYLE_TYPE.toggle}
+            checked={showTrips}
+            onChange={({ target: { checked } }) => this.setState({ showTrips: checked })}
+            labelPlacement={LABEL_PLACEMENT.right}
+          >
+            Show Trips
+                    </Checkbox>
+        </FormControl>
+        <FormControl>
+          <Checkbox
+            checkmarkType={STYLE_TYPE.toggle}
+            checked={showEmissionsHist}
+            onChange={({ target: { checked } }) => this.setState({ showEmissionsHist: checked })}
+            labelPlacement={LABEL_PLACEMENT.right}
+          >
+            Show Emissions
+          </Checkbox>
+        </FormControl>
+        {
+          histVehData.length && (
+            <div>
+              <FormControl label='Date filter'>
+                <VehicleFilter
+                  value={filterValue}
+                  min={timeRange[0]}
+                  max={timeRange[1]}
+                  step={1}
+                  formatTimeLabelThumb={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
+                  formatTimeLabelTick={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
+                  // step={MS_PER_MINUTE}
+                  // formatTimeLabelThumb={t => this.formatTimeLabel(t, 'LT')}
+                  // formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
+                  onChange={this.filterDataRange}
+                />
+              </FormControl>
+              <FormControl label='Time resolution'>
+                <div>
+                  {this.renderResolutionFilter('5s', 5)}
+                  {this.renderResolutionFilter('30s', 30)}
+                  {this.renderResolutionFilter('1m', 60)}
+                  {this.renderResolutionFilter('10m', 60 * 10)}
+                  {this.renderResolutionFilter('30m', 60 * 30)}
+                  {this.renderResolutionFilter('1h', 60 * 60)}
+                  {this.renderResolutionFilter('All')}
+                </div>
+              </FormControl>
+              {/* <FormControl caption='Showing 5 hours and 30 minutes'>
+                              <DateRange
+                                startDate={filterValue[0]}
+                                endDate={filterValue[1]}
+                                filterDataRange={this.filterDataRange}
+                              />
+                            </FormControl> */}
+            </div>
+          )
+        }
+      </Fragment>
+    );
+  }
+
+  renderLiveOptions() {
+    const {
+      showTrails,
+      showEmissionsLive,
+    } = this.state;
+
+    return (
+      <Fragment>
+        <FormControl>
+          <Checkbox
+            checkmarkType={STYLE_TYPE.toggle}
+            labelPlacement={LABEL_PLACEMENT.right}
+            checked={showTrails}
+            onChange={({ target: { checked } }) => this.setState({ showTrails: checked })}
+          >
+            Show Trails
+          </Checkbox>
+        </FormControl>
+        <FormControl>
+          <Checkbox
+            checkmarkType={STYLE_TYPE.toggle}
+            checked={showEmissionsLive}
+            onChange={({ target: { checked } }) => this.setState({ showEmissionsLive: checked })}
+            labelPlacement={LABEL_PLACEMENT.right}
+          >
+            Show Emissions
+          </Checkbox>
+        </FormControl>
+      </Fragment>
+    );
+  }
+
+  renderStats(values = []) {
+    return (
+      <ListItem sublist_>
+        {
+          values.map(({ value, description }, i) => (
+            <ListItemLabel key={i} description={value}>
+              {description}
+            </ListItemLabel>
+          ))
+        }
+      </ListItem>
+    );
+  }
+
+  getRecorderTime(startDateMs, endDateMs) {
+    return moment.utc(
+      moment(endDateMs).diff(moment(startDateMs))
+    ).format('HH:mm:ss');
+  }
+
+  renderStatsHist() {
+    return this.renderStats([
+      { description: 'Vehicles', value: '200' },
+      { description: 'CO2 Level', value: '10ppm' },
+      { description: 'Recorder time', value: '05:20:00' },
+    ]);
+  }
+
+  renderStatsLive() {
+    const {
+      vehicleCount,
+      lastTime
+    } = this.state;
+
+    return this.renderStats([
+      { description: 'Vehicles', value: vehicleCount },
+      { description: 'CO2 Level', value: '4439ppm' },
+      { description: 'Recorded time', value: this.getRecorderTime(BASE, lastTime + BASE) },
+    ]);
+  }
+
+  render() {
+    const {
+      isLiveMode,
+    } = this.state;
+
+    const renderedLayers = isLiveMode
+      ? this.getLiveLayers()
+      : this.getHistLayers();
+
+    return (
       <StyletronProvider value={engine}>
         <BaseProvider theme={LightTheme}>
           <DeckGL
-            layers={this._renderLayers()}
+            layers={renderedLayers}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
             pickingRadius={5}
@@ -412,87 +602,42 @@ export default class App extends Component {
           <ContainerInfo>
             <Card>
               <StyledBody>
-                <Display4>CO2 Emissions</Display4>
-                <Paragraph3>
+                <HeaderNavigation style_={{ borderBottom: 0 }}>
+                  <NavigationList $align={ALIGN.left}>
+                    <NavigationItem style={{ paddingLeft: 0 }}>
+                      <Display4>CO2 Emissions</Display4>
+                    </NavigationItem>
+                  </NavigationList>
+                  <NavigationList $align={ALIGN.center} />
+                  <NavigationList $align={ALIGN.right}>
+                    <NavigationItem>
+                      <Checkbox
+                        checkmarkType={STYLE_TYPE.toggle}
+                        isError
+                        checked={isLiveMode}
+                        onChange={({ target: { checked } }) => this.setState({ isLiveMode: checked })}
+                        labelPlacement={LABEL_PLACEMENT.left}
+                      >
+                        Live
+                      </Checkbox>
+                    </NavigationItem>
+                  </NavigationList>
+                </HeaderNavigation>
+                {
+                  isLiveMode
+                    ? this.renderStatsLive()
+                    : this.renderStatsHist()
+                }
+                {/* <Paragraph3>
                   This app shows the CO2 emissions of urban traffic.
                   Two modes available: real-time and historical
-                </Paragraph3>
+                </Paragraph3> */}
               </StyledBody>
               <StyledAction>
-                <FormControl>
-                  <Checkbox
-                    checkmarkType={STYLE_TYPE.toggle}
-                    isError
-                    checked={isLiveMode}
-                    onChange={({ target: { checked } }) => this.setState({ isLiveMode: checked })}
-                    labelPlacement={LABEL_PLACEMENT.right}
-                  >
-                    Live
-              </Checkbox>
-                </FormControl>
                 {
-                  !isLiveMode && (
-                    <div>
-                      <FormControl>
-                        <Checkbox
-                          checkmarkType={STYLE_TYPE.toggle}
-                          checked={showTrips}
-                          onChange={({ target: { checked } }) => this.setState({ showTrips: checked })}
-                          labelPlacement={LABEL_PLACEMENT.right}
-                        >
-                          Show Trips
-                    </Checkbox>
-                      </FormControl>
-                      <FormControl>
-                        <Checkbox
-                          checkmarkType={STYLE_TYPE.toggle}
-                          checked={showEmissions}
-                          onChange={({ target: { checked } }) => this.setState({ showEmissions: checked })}
-                          labelPlacement={LABEL_PLACEMENT.right}
-                        >
-                          Show Emissions
-                    </Checkbox>
-                      </FormControl>
-                      {
-                        !isLiveMode && histVehData.length && (
-                          <div>
-                            <FormControl label='Date filter'>
-                              <VehicleFilter
-                                value={filterValue}
-                                min={timeRange[0]}
-                                max={timeRange[1]}
-                                step={1}
-                                formatTimeLabelThumb={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
-                                formatTimeLabelTick={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
-                                // step={MS_PER_MINUTE}
-                                // formatTimeLabelThumb={t => this.formatTimeLabel(t, 'LT')}
-                                // formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
-                                onChange={this.filterDataRange}
-                              />
-                            </FormControl>
-                            <FormControl label='Time resolution'>
-                              <div>
-                                {this.renderResolutionFilter('5s', 5)}
-                                {this.renderResolutionFilter('30s', 30)}
-                                {this.renderResolutionFilter('1m', 60)}
-                                {this.renderResolutionFilter('10m', 60 * 10)}
-                                {this.renderResolutionFilter('30m', 60 * 30)}
-                                {this.renderResolutionFilter('1h', 60 * 60)}
-                                {this.renderResolutionFilter('All')}
-                              </div>
-                            </FormControl>
-                            {/* <FormControl caption='Showing 5 hours and 30 minutes'>
-                              <DateRange
-                                startDate={filterValue[0]}
-                                endDate={filterValue[1]}
-                                filterDataRange={this.filterDataRange}
-                              />
-                            </FormControl> */}
-                          </div>
-                        )
-                      }
-                    </div>
-                  )
+                  isLiveMode
+                    ? this.renderLiveOptions()
+                    : this.renderHistoryOptions()
                 }
               </StyledAction>
             </Card>
