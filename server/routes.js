@@ -5,7 +5,8 @@ const { Precision } = influx;
 import mockData from './mock-data.js';
 
 function calculateCO2(speed) {
-  return speed * 10;
+  // return speed * 10;
+  return Number(speed);
 }
 
 const BASE_DATE = new Date(2019, 11, 9, 6).getTime();
@@ -29,10 +30,10 @@ async function addVehicleStep(req, res) {
   // const co2 = calculateCO2(speed);
 
   const newVehicleStep = {
-    lat,
-    lng,
+    lat: Number(lat),
+    lng: Number(lng),
     speed,
-    co2,
+    co2: calculateCO2(co2),
   };
 
   const newVehiclePoint = {
@@ -53,6 +54,7 @@ async function addVehicleStep(req, res) {
       veh_id,
       ...newVehicleStep,
     });
+
     // await db.writePoints([newVehiclePoint]);
 
     res.status(200).end();
