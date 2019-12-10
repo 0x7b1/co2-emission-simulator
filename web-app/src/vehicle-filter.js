@@ -52,7 +52,7 @@ function VehicleFilter(props) {
             })}
           >
             <div>{formatTimeLabelTick($min)}</div>
-            <div>{formatTimeLabelTick($min + MS_PER_SECOND * 1)}</div>
+            {/* <div>{formatTimeLabelTick($min + MS_PER_SECOND * 1)}</div> */}
             <div>{formatTimeLabelTick($max)}</div>
 
           </div>

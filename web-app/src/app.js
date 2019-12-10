@@ -2,11 +2,11 @@ import React, { Component, Fragment } from 'react';
 import { StaticMap } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { HexagonLayer, HeatmapLayer } from '@deck.gl/aggregation-layers';
+import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { FormControl } from 'baseui/form-control';
 import { Card, StyledBody, StyledAction } from "baseui/card";
-import { styled, useStyletron } from 'baseui';
+import { styled } from 'baseui';
 import { Display4 } from 'baseui/typography';
 import { Checkbox, LABEL_PLACEMENT, STYLE_TYPE } from "baseui/checkbox";
 import { Tag, VARIANT } from "baseui/tag";
@@ -16,17 +16,14 @@ import { Client as Styletron } from 'styletron-engine-atomic';
 import { Provider as StyletronProvider } from 'styletron-react';
 import { LightTheme, BaseProvider } from 'baseui';
 import moment from 'moment';
-import hsv2rgb from 'hsv-rgb';
-import { StyledLink as Link } from 'baseui/link';
-import { Button } from 'baseui/button';
+import { ListItem, ListItemLabel } from "baseui/list";
 import {
   HeaderNavigation,
   ALIGN,
   StyledNavigationItem as NavigationItem,
   StyledNavigationList as NavigationList,
 } from 'baseui/header-navigation';
-import { ListItem, ARTWORK_SIZES, ListItemLabel } from "baseui/list";
-import { Check } from "baseui/icon";
+import { Spinner } from 'baseui/spinner';
 
 import VehicleFilter from './vehicle-filter';
 import CardLegend from './card-legend';
@@ -54,18 +51,32 @@ const INITIAL_VIEW_STATE = {
 
   zoom: 15,
   pitch: 0,
-  bearing: 0
+  bearing: 0,
+
+  maxZoom: 17,
 };
 
-const MAP_STYLE = 'mapbox://styles/mapbox/light-v9';
+const MAP_STYLE = 'mapbox://styles/mapbox/dark-v9';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg';
 const BASE_DATE = new Date().getTime();
-const MS_PER_DAY = 604800000;
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = MS_PER_SECOND * 60;
 const URL_DATA = 'http://localhost:8080/api/vehicles';
 const URL_WS = 'ws://localhost:8081/ws';
+
 const mapRange = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;
+const co2ColorRange = [
+  [42, 163, 100],
+  [162, 206, 86],
+  [240, 225, 75],
+  [222, 191, 68],
+  [205, 158, 61],
+  [188, 124, 53],
+  [171, 91, 46],
+  [143, 61, 35],
+  [82, 39, 12],
+  [56, 29, 2],
+];
 
 export default class App extends Component {
   constructor(props) {
@@ -75,23 +86,15 @@ export default class App extends Component {
 
     this.state = {
       ws: null,
-
       liveVehiclePaths: Map(),
       liveVehicleData: List(),
-
       histVehiclePaths: Map(),
       histVehicleData: List(),
       histVehicleDataFiltered: List(),
-
       lastTime: 0,
-
       timeRange,
       filterValue: timeRange,
-
-      // hexData: dataExample,
-
       hoveredObject: null,
-
       isLiveMode: true,
       showTrips: true,
       showTrails: false,
@@ -106,12 +109,6 @@ export default class App extends Component {
     this.connectWS();
   }
 
-  formatTimestamp(time = new Date()) {
-    return (time.getTime());
-    // return (time.getTime() - BASE_DATE);
-  }
-
-  // This function groups and updates the path and timestamps of data
   updateVehicleStep = (vehiclePaths, stepTime, data) =>
     vehiclePaths.update(
       data.get('veh_id'),
@@ -198,51 +195,34 @@ export default class App extends Component {
         id: 'trips-layer',
         data: liveVehiclePaths,
         getPath: ([, d]) => d.get('path').toJS(),
-        getTimestamps: ([, d]) => d.get('timestamps').toJS(),
+        getTimestamps: ([, d]) => d.get('timestamps').toArray(),
         getColor: [255, 140, 0],
-        // getColor: [253, 128, 93],
         opacity: 0.9,
         rounded: true,
         trailLength: MS_PER_SECOND * 30,
         widthMinPixels: 5,
         currentTime: lastTime,
-        // shadowEnabled: false,
       }),
 
       showVehicles && new ScatterplotLayer({
         id: 'vehicles-layer',
         data: liveVehiclePaths,
         getPosition: ([_, d]) => d.get('path').last().toArray(),
+        getFillColor: d => [255, 140, 0],
         getRadius: d => 2,
         pickable: true,
         opacity: 0.8,
-        stroked: true,
         filled: true,
-        radiusScale: 6,
-        radiusMinPixels: 1,
-        radiusMaxPixels: 100,
-        lineWidthMinPixels: 1,
-        getFillColor: d => [255, 140, 0],
-        getLineColor: d => [0, 0, 0],
+        radiusMinPixels: 6,
+        radiusMaxPixels: 10,
       }),
 
       showEmissionsLive && new HeatmapLayer({
-        id: 'heatmap-layer',
+        id: 'live-heatmap-layer',
         data: liveVehicleData,
         getPosition: d => [d.get('lng'), d.get('lat')],
-        radiusPixels: 40,
-        colorDomain: [10, 500],
-        colorRange: [
-          [1, 152, 189, 255],
-          [73, 227, 206, 255],
-          [216, 254, 181, 255],
-          [254, 237, 177, 255],
-          [254, 173, 84, 255],
-          [209, 55, 78, 255],
-        ],
         getWeight: d => d.get('co2'),
-        intensity: 1,
-        threshold: 0.1,
+        colorRange: co2ColorRange,
       }),
     ];
   }
@@ -261,62 +241,17 @@ export default class App extends Component {
         data: histVehiclePaths,
         pickable: true,
         getPath: ([, d]) => d.get('path').toJS(),
-        // getColor: ([, d]) => hsv2rgb(
-        //   100 - mapRange(d.get('co2'), 0, 22427, 0, 100),
-        //   100,
-        //   100),
-        // widthMaxPixels: 10,
-        getWidth: ([, d]) => {
-          // return d.get('path').size / 15;
-          // return Math.floor(Math.random() * 6);
-          return mapRange(d.get('path').size, 0, 500, 0, 10);
-        },
+        getWidth: ([, d]) => mapRange(d.get('path').size, 0, 500, 2, 7),
+        getColor: () => [255, 140, 0],
+        opacity: 0.5,
       }),
 
-      showEmissionsHist && new HexagonLayer({
-        id: 'hexagon-layer',
+      showEmissionsHist && new HeatmapLayer({
+        id: 'historical-heatmap-layer',
         data: histVehicleDataFiltered,
         getPosition: d => [d.get('lng'), d.get('lat')],
-        pickable: true,
-        extruded: true,
-        radius: 5,
-        // colorDomain: [1, 100],
-        elevationRange: [1, 20],
-        elevationScale: 5,
-        colorRange: [
-          [1, 152, 189, 255],
-          [73, 227, 206, 255],
-          [216, 254, 181, 255],
-          [254, 237, 177, 255],
-          [254, 173, 84, 255],
-          [209, 55, 78, 255],
-        ],
-        // getColorWeight: d => d.co2,
-        // getElevationWeight: d => 3,
-        colorAggregation: 'SUM',
-        elevationAggregation: 'SUM',
-        transitions: {
-          elevationScale: 500,
-        },
-      }),
-
-      0 && showEmissionsHist && new HeatmapLayer({
-        id: 'heatmap-layer',
-        data: histVehicleDataFiltered,
-        radiusPixels: 40,
-        colorDomain: [10, 500],
-        colorRange: [
-          [1, 152, 189, 255],
-          [73, 227, 206, 255],
-          [216, 254, 181, 255],
-          [254, 237, 177, 255],
-          [254, 173, 84, 255],
-          [209, 55, 78, 255],
-        ],
-        getPosition: d => d.get('coordinates').toArray(),
         getWeight: d => d.get('co2'),
-        intensity: 1,
-        threshold: 0.1,
+        colorRange: co2ColorRange,
       }),
     ];
   }
@@ -400,7 +335,7 @@ export default class App extends Component {
 
     if (histVehicleData.isEmpty()) {
       return (
-        <p>There is no data yet!</p>
+        <Spinner />
       );
     }
 
@@ -431,12 +366,9 @@ export default class App extends Component {
             value={filterValue}
             min={timeRange[0]}
             max={timeRange[1]}
-            step={1}
+            step={MS_PER_MINUTE}
             formatTimeLabelThumb={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
-            formatTimeLabelTick={t => this.formatTimeLabel(t, '(DD/MM) HH:mm:ss')}
-            // step={MS_PER_MINUTE}
-            // formatTimeLabelThumb={t => this.formatTimeLabel(t, 'LT')}
-            // formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
+            formatTimeLabelTick={t => this.formatTimeLabel(t, 'DD/MM')}
             onChange={this.filterDataRange}
           />
         </FormControl>
@@ -468,20 +400,20 @@ export default class App extends Component {
           <Checkbox
             checkmarkType={STYLE_TYPE.toggle}
             labelPlacement={LABEL_PLACEMENT.right}
-            checked={showTrails}
-            onChange={({ target: { checked } }) => this.setState({ showTrails: checked })}
+            checked={showVehicles}
+            onChange={({ target: { checked } }) => this.setState({ showVehicles: checked })}
           >
-            Show Trails
+            Show Vehicles
           </Checkbox>
         </FormControl>
         <FormControl>
           <Checkbox
             checkmarkType={STYLE_TYPE.toggle}
             labelPlacement={LABEL_PLACEMENT.right}
-            checked={showVehicles}
-            onChange={({ target: { checked } }) => this.setState({ showVehicles: checked })}
+            checked={showTrails}
+            onChange={({ target: { checked } }) => this.setState({ showTrails: checked })}
           >
-            Show Vehicles
+            Show Trails
           </Checkbox>
         </FormControl>
         <FormControl>
@@ -615,7 +547,9 @@ export default class App extends Component {
               </StyledAction>
             </Card>
           </ContainerInfo>
-          <CardLegend />
+          <CardLegend
+            co2ColorRange={co2ColorRange}
+          />
         </BaseProvider>
       </StyletronProvider>
     );
