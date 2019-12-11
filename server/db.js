@@ -7,10 +7,9 @@ const db = new Influx.InfluxDB({
     {
       measurement: 'vehicles',
       fields: {
-        veh_id: Influx.FieldType.STRING,
         lat: Influx.FieldType.FLOAT,
         lng: Influx.FieldType.FLOAT,
-        co2: Influx.FieldType.FLOAT, // mg/s
+        co2: Influx.FieldType.FLOAT,
       },
       tags: [
         'veh_id',

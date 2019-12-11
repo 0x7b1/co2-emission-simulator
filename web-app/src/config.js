@@ -1,5 +1,9 @@
 const scenario = process.env.REACT_APP_SCENARIO || 'simple';
-const URL_PATH = 'http://localhost:8080/api/vehicles';
+// const HOST = '172.31.145.132';
+const HOST = '127.0.0.1';
+const URL_PATH = `http://${HOST}:8080/api/vehicles`;
+
+console.log('->', process.env)
 
 const scenarios = {
   simple: {
@@ -31,7 +35,7 @@ const config = {
   mapStyle: 'mapbox://styles/mapbox/dark-v9',
   mapboxToken: 'pk.eyJ1IjoiMHg3YjEiLCJhIjoiY2lwbHMxNnRvMDJkZXU5bmozYjF1a3UyYSJ9.ec73WL0KE8xDc9JFrchXPg',
   urlData,
-  urlWs: 'ws://localhost:8081/ws',
+  urlWs: `ws://${HOST}:8081/ws`,
   co2ColorRange: [
     [42, 163, 100],
     [162, 206, 86],

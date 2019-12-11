@@ -25,4 +25,4 @@ df.iloc[0:200].plot(kind="line", x="i", y="sumo", color="red", ax=ax)
 
 plt.show()
 
-# ax.savefig("output.png")
+ax.savefig("tartu_emissions_plot.png")
