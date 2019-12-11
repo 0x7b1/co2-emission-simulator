@@ -1,6 +1,6 @@
 const scenario = process.env.REACT_APP_SCENARIO || 'simple';
-// const HOST = '172.31.145.132';
-const HOST = '127.0.0.1';
+const HOST = '172.17.168.48';
+// const HOST = '127.0.0.1';
 const URL_PATH = `http://${HOST}:8080/api/vehicles`;
 
 console.log('->', process.env)

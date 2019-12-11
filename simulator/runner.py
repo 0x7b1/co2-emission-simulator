@@ -45,7 +45,7 @@ import traci.constants as tc
 
 SUMOCFG_FILE = sumocfg_scenarios[SCENARIO_SELECTED]
 
-sumoBinary = "/usr/bin/sumo"
+sumoBinary = "/usr/bin/sumo-gui"
 sumoCmd = [sumoBinary, "-c", SUMOCFG_FILE, "--step-length=1.0", "-S", "-Q"]
 
 traci.start(sumoCmd, label="sim1")
