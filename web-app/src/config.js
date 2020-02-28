@@ -2,7 +2,7 @@
 // const HOST = '172.31.146.171';
 const HOST = '127.0.0.1';
 // const URL_PATH = `http://${HOST}:8080/api/vehicles`;
-const URL_PATH = `https://0x7b1.github.io/co2-emission-simulator/data/`;
+const URL_PATH = `https://0x7b1.github.io/co2-emission-simulator/data`;
 
 console.log('->', process.env)
 

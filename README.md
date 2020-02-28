@@ -3,6 +3,8 @@
 
 ![Screenshot](screenshot_1.png)
 
+[Go to the academic report](https://github.com/0x7b1/co2-emission-simulator/blob/master/report/main.pdf)
+
 This is the repository for the project titled "A real-time simulation based approach for quantifying CO2 emissions of urban car traffic".
 It contains the report and two programs that are part of it.
 
@@ -14,8 +16,6 @@ To execute the program run `yarn start`
 
 The `simulator` folder contains the code for the simulator. It's an automation tool that communicates with SUMO for generating vehicle traffic.
 To execute the program run `python runner.py`
-
-This is the report to the project.
 
 ### References
 
