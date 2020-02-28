@@ -3,6 +3,9 @@ import Influx from 'influx';
 const db = new Influx.InfluxDB({
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
+  port: 8086,
+  // username: 'admin',
+  // password: 'admin',
   schema: [
     {
       measurement: 'vehicles',

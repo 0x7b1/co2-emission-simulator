@@ -70,7 +70,8 @@ async function addVehicleStep(req, res) {
   };
 
   // console.log('%s,%s', co2, newVehicleStep.co2);
-  logger.write(co2 + ',' + newVehicleStep.co2 + '\n');
+  // logger.write(co2 + ',' + newVehicleStep.co2 + '\n');
+  console.log(JSON.stringify(newVehicleStep) + ',\n');
 
   const newVehiclePoint = {
     measurement: 'vehicles',
@@ -94,7 +95,7 @@ async function addVehicleStep(req, res) {
       ...newVehicleStep,
     });
 
-    await db.writePoints([newVehiclePoint]);
+    // await db.writePoints([newVehiclePoint]);
     res.status(200).end();
   } catch (error) {
     console.error(error);

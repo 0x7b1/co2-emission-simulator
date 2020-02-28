@@ -12,9 +12,10 @@ To execute the program run `yarn start`
 The `web-app` folder contains the code for the frontend tool. It's a visualization tool that gathers info from the server in real time.
 To execute the program run `yarn start`
 
-The `simulator` folder contains the code for the simulator. It's an automation tool for SUMO for sending vehicle traffic.
+The `simulator` folder contains the code for the simulator. It's an automation tool that communicates with SUMO for generating vehicle traffic.
 To execute the program run `python runner.py`
 
+This is the report to the project.
 
 ### References
 

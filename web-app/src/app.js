@@ -2,6 +2,7 @@ import React, { Component, Fragment } from 'react';
 import { StaticMap } from 'react-map-gl';
 import DeckGL from '@deck.gl/react';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
+import { FlyToInterpolator } from '@deck.gl/core';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { FormControl } from 'baseui/form-control';
@@ -27,15 +28,18 @@ import { Spinner } from 'baseui/spinner';
 
 import VehicleFilter from './vehicle-filter';
 import CardLegend from './card-legend';
+import CardTestSelector from './card-test-selector';
 import config from './config';
 
 const {
-  initialPosition,
-  co2ColorRange,
-  urlData,
-  urlWs,
-  mapboxToken,
-  mapStyle,
+  scenarios,
+  TEST_CASES,
+  config: {
+    urlWs,
+    mapboxToken,
+    mapStyle,
+    co2ColorRange,
+  }
 } = config;
 
 const engine = new Styletron();
@@ -47,13 +51,6 @@ const ContainerInfo = styled('div', {
   left: '20px',
   bottom: '20px',
 });
-const INITIAL_VIEW_STATE = {
-  zoom: 15,
-  pitch: 0,
-  bearing: 0,
-  maxZoom: 17,
-  ...initialPosition,
-};
 
 const BASE_DATE = new Date().getTime();
 const MS_PER_SECOND = 1000;
@@ -67,6 +64,8 @@ export default class App extends Component {
     const timeRange = [Infinity, -Infinity];
 
     this.state = {
+      viewState: this.getViewState(TEST_CASES.TARTU),
+      selectedTestCase: TEST_CASES.TARTU,
       ws: null,
       liveVehiclePaths: Map(),
       liveVehicleData: List(),
@@ -76,12 +75,26 @@ export default class App extends Component {
       lastTime: 0,
       timeRange,
       filterValue: timeRange,
-      isLiveMode: true,
+      isLiveMode: false,
       showTrips: true,
       showTrails: false,
       showVehicles: true,
       showEmissionsHist: false,
       showEmissionsLive: false,
+    };
+  }
+
+  getViewState = (selectedTestCase) => {
+    const { initialPosition, urlData } = scenarios[selectedTestCase];
+
+    return {
+      ...initialPosition,
+      zoom: 15,
+      pitch: 0,
+      bearing: 0,
+      // maxZoom: 17,
+      transitionDuration: 2000,
+      transitionInterpolator: new FlyToInterpolator(),
     };
   }
 
@@ -141,8 +154,13 @@ export default class App extends Component {
   }
 
   fetchData = async () => {
+    const { selectedTestCase } = this.state;
+    const { urlData } = scenarios[selectedTestCase];
+
     try {
-      const histVehicleData = fromJS(await json(urlData));
+      const rawData = await json(urlData);
+      console.log('->', JSON.stringify(rawData));
+      const histVehicleData = fromJS(rawData);
 
       if (histVehicleData.isEmpty()) {
         throw new Error('There is no data yet!');
@@ -217,6 +235,8 @@ export default class App extends Component {
       histVehiclePaths,
       histVehicleDataFiltered,
     } = this.state;
+
+    // console.log('->', JSON.stringify(histVehiclePaths.toJS()));
 
     return [
       showTrips && new PathLayer({
@@ -446,9 +466,24 @@ export default class App extends Component {
     ]);
   }
 
+  onSelectTestCase = e => {
+    const selectedTestCase = e.target.value;
+    const viewState = this.getViewState(selectedTestCase);
+    this.setState({
+      selectedTestCase,
+      viewState,
+    });
+  }
+
+  onViewStateChange = ({ viewState }) => {
+    this.setState({ viewState });
+  }
+
   render() {
     const {
       isLiveMode,
+      viewState,
+      selectedTestCase,
     } = this.state;
 
     const renderedLayers = isLiveMode
@@ -460,9 +495,10 @@ export default class App extends Component {
         <BaseProvider theme={LightTheme}>
           <DeckGL
             layers={renderedLayers}
-            initialViewState={INITIAL_VIEW_STATE}
+            initialViewState={viewState}
             controller={true}
             pickingRadius={5}
+            onViewStateChange={this.onViewStateChange}
           >
             <StaticMap
               reuseMaps
@@ -473,6 +509,9 @@ export default class App extends Component {
 
             {this._renderTooltip}
           </DeckGL>
+          <CardTestSelector
+            selectedTestCase={selectedTestCase}
+            onSelectTestCase={this.onSelectTestCase} />
           <ContainerInfo>
             <Card>
               <StyledBody>
