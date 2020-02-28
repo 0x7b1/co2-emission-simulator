@@ -16,6 +16,7 @@
     "styletron-engine-atomic": "^1.4.4",
     "styletron-react": "^5.2.6"
   },
+  "homepage": "https://0x7b1.github.io/co2-emission-simulator/",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

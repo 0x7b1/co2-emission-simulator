@@ -79,7 +79,7 @@ export default class App extends Component {
       showTrips: true,
       showTrails: false,
       showVehicles: true,
-      showEmissionsHist: false,
+      showEmissionsHist: true,
       showEmissionsLive: false,
     };
   }
@@ -159,7 +159,6 @@ export default class App extends Component {
 
     try {
       const rawData = await json(urlData);
-      console.log('->', JSON.stringify(rawData));
       const histVehicleData = fromJS(rawData);
 
       if (histVehicleData.isEmpty()) {
@@ -235,8 +234,6 @@ export default class App extends Component {
       histVehiclePaths,
       histVehicleDataFiltered,
     } = this.state;
-
-    // console.log('->', JSON.stringify(histVehiclePaths.toJS()));
 
     return [
       showTrips && new PathLayer({
